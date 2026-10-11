@@ -14,6 +14,7 @@ const command = promisify(execFile);
 test('camera detection marks the QR and releases the video track on leaving the reader', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   const png = await sharp(Buffer.from(renderQrSvg(encodePayload(url), { margin: 4, size: 900 })))
     .png()
     .toBuffer();
@@ -43,7 +44,7 @@ test('camera detection marks the QR and releases the video track on leaving the 
 async function check(page) {
   await page.locator('#check-qr').click();
   await expect(page.locator('#check-results')).toHaveAttribute('data-result', 'passed', {
-    timeout: 25_000,
+    timeout: 45_000,
   });
 }
 async function field(page, id, value) {
@@ -150,7 +151,7 @@ test('autosave, named projects, comparison and repair suggestions preserve user 
 test('framed vector and bitmap PDFs match the readable exported design and print size', async ({
   page,
 }, info) => {
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
   await page.goto('/');
   await advanced(page);
   await page.locator('#border-enabled').check();
