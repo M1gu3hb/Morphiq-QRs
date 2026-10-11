@@ -204,7 +204,6 @@ export function initAdvanced(studio) {
       const shape = await prepareSilhouette(await readFile(file), file.name);
       if (revision !== silhouetteRevision) return;
       el('silhouette-enabled').checked = true;
-      el('margin').value = String(Math.max(4, Number(el('margin').value)));
       studio.setSilhouette(shape);
     } catch (error) {
       studio.showToast(error.message);

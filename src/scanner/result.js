@@ -1,4 +1,4 @@
-export function scanResult(payload) {
+function describeResult(payload) {
   if (/^https?:\/\//i.test(payload)) {
     try {
       const url = new URL(payload);
@@ -67,6 +67,21 @@ export function scanResult(payload) {
     return { kind: 'Contacto', content: payload, download: 'vcf', mime: 'text/vcard' };
   if (/^BEGIN:VCALENDAR/i.test(payload))
     return { kind: 'Evento', content: payload, download: 'ics', mime: 'text/calendar' };
-  if (/^SMSTO:/i.test(payload)) return { kind: 'Mensaje SMS', content: payload.slice(6) };
+  if (/^SMSTO:/i.test(payload)) {
+    const match = payload.match(/^SMSTO:(\+?\d{7,15}):([\s\S]*)$/i);
+    return {
+      kind: 'Mensaje SMS',
+      content: match ? `${match[1]}\n${match[2]}` : payload.slice(6),
+      ...(match
+        ? { href: `sms:${match[1]}?body=${encodeURIComponent(match[2])}`, action: 'Enviar mensaje' }
+        : {}),
+    };
+  }
   return { kind: 'Texto', content: payload };
+}
+
+// Keep the original payload apart from the human-readable description. Wi-Fi,
+// email and telephone descriptions are not interchangeable with their QR data.
+export function scanResult(payload) {
+  return { ...describeResult(payload), payload };
 }

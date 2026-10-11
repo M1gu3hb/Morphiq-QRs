@@ -4,10 +4,7 @@ export function captureFields() {
     Array.from(
       document.querySelectorAll('.controls input[id],.controls textarea[id],.controls select[id]'),
     )
-      .filter(
-        (e) =>
-          e.type !== 'file' && !['batch-input', 'batch-format', 'border-search'].includes(e.id),
-      )
+      .filter((e) => e.type !== 'file' && !['batch-input', 'batch-format'].includes(e.id))
       .map((e) => [e.id, e.type === 'checkbox' ? e.checked : e.value]),
   );
 }

@@ -1,5 +1,5 @@
 import { projectStore } from '../projects/storage.js';
-export function initPwa(studio) {
+export function initPwa(studio, projects = null) {
   const button = document.getElementById('install-app');
   let prompt = null,
     waiting = null;
@@ -21,12 +21,14 @@ export function initPwa(studio) {
   button.addEventListener('click', async () => {
     if (waiting) {
       try {
-        await projectStore.save({
-          id: 'autosave',
-          name: 'Borrador',
-          updated: Date.now(),
-          state: studio.getState(),
-        });
+        if (projects) await (await projects).flushDraft();
+        else
+          await projectStore.save({
+            id: 'autosave',
+            name: 'Borrador',
+            updated: Date.now(),
+            state: studio.getState(),
+          });
       } catch (error) {
         studio.showToast(error.message);
         return;

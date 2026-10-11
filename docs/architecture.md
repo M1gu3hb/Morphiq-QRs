@@ -20,7 +20,7 @@ La ventana central crece en unidades enteras: desde dos módulos hasta catorce, 
 
 Las imágenes se normalizan localmente a un máximo de 1024 píxeles y se recorta su relleno exterior. Un SVG se analiza como XML inerte y se conserva como vector estático, excluyendo scripts, eventos, recursos externos y elementos ejecutables. Los identificadores se separan por vista para evitar conflictos entre degradados o recortes.
 
-Una silueta usa el canal alfa de un PNG. Un algoritmo encuentra el mayor cuadrado opaco interior; allí se coloca el QR intacto con su zona libre. El resto del contorno recibe una trama decorativa. Si la figura no ofrece una zona suficientemente amplia, se rechaza con una explicación. La decoración no se presenta como una redistribución válida de la matriz.
+Una silueta usa el canal alfa de un PNG. Un algoritmo encuentra el mayor cuadrado opaco interior; allí se coloca el QR intacto. Al cargar o reactivar una silueta se establece margen cero y se desactiva el marco decorativo. Las decisiones posteriores de un proyecto guardado se conservan al restaurarlo. El resto del contorno recibe una trama decorativa. Si la figura no ofrece una zona suficientemente amplia, se rechaza con una explicación. La decoración no se presenta como una redistribución válida de la matriz.
 
 Los marcos tienen catálogo, controlador y renderer independientes. Sus 43 composiciones mantienen las coordenadas originales del QR, añadiendo decoración y hasta tres textos alrededor. El controlador está disponible sin modo estudio y crea las muestras antes de medir la animación de apertura. Una vista flotante sigue la composición actual cuando la vista principal queda fuera de pantalla; permite minimizar o ampliar el QR.
 
@@ -34,15 +34,17 @@ El PDF sencillo comparte los trazados del catálogo. Los diseños avanzados usan
 
 En impresión, el ancho físico determina los píxeles según los dpi; el alto respeta la proporción del diseño completo. PNG/JPEG llevan densidad; SVG/PDF llevan medidas físicas. Las etiquetas A4 usan el mismo diseño y lo comprueban antes de colocarlo.
 
+La opción de compartir rasteriza el mismo SVG como PNG. En el generador, una instantánea pasa las cuatro lecturas y se invalida al editar el diseño. En navegadores con Web Share, se prepara antes del clic para conservar la activación necesaria del usuario; si la preparación consume ese gesto, se pide volver a pulsar el botón. `navigator.share()` recibe exclusivamente `{ files: [archivoPNG] }`. Cancelar no descarga ni abre nada. Los navegadores que no admiten compartir archivos descargan ese PNG. El menú del sistema determina qué aplicaciones receptoras están disponibles.
+
 ## Guardado local
 
-IndexedDB conserva el borrador y los proyectos con imágenes incluidas. La escritura se confirma cuando finaliza la transacción. El autoguardado usa un breve debounce y las escrituras se serializan. Un proyecto JSON se valida antes de cargarlo: versión, campos conocidos, estilos compatibles, imágenes locales y contorno acotado.
+IndexedDB conserva el borrador y los proyectos con imágenes incluidas. La escritura se confirma cuando finaliza la transacción. El autoguardado usa un breve debounce y las escrituras se serializan, incluido el guardado al pasar al fondo y el guardado previo a actualizar la PWA; una escritura anterior no puede sobrescribir el último borrador. Un proyecto JSON se valida antes de cargarlo: versión, campos conocidos, estilos compatibles, imágenes locales y contorno acotado.
 
 El borrador no es una cuenta ni una sincronización. Exportar JSON permite respaldar o mover el proyecto. Eliminar datos del sitio puede eliminarlo; el navegador determina las cuotas y disponibilidad del almacenamiento.
 
 ## Lector y PWA
 
-La cámara se solicita al pulsar Activar cámara. Cada sesión tiene un token; cambiar vista, cerrar la página o pasar al fondo detiene las pistas. El lector dibuja las esquinas detectadas sobre una imagen con la misma proporción y muestra el contenido. Solo produce acciones de navegación para esquemas permitidos; no navega automáticamente.
+La cámara se solicita al pulsar Activar cámara. Cada sesión tiene un token; cambiar vista, cerrar la página o pasar al fondo detiene las pistas. La cámara ocupa todo el viewport con `object-fit: cover`; se decodifica exactamente su región visible. Al reconocer un código se congela ese cuadro, se detienen las pistas, se dibujan las esquinas y se muestra el resultado. `scanResult()` conserva por separado la carga original y la descripción legible. `rebuildQr()` genera un QR negro/blanco completo con margen de cuatro módulos a partir de la carga exacta, sin perder parámetros de correo, escapes Wi-Fi ni líneas de vCard/ICS. Si el contenido excede la capacidad de M, se admite L para reconstruir una carga legítima. Solo produce acciones de navegación para esquemas permitidos; no navega automáticamente.
 
 El manifiesto conserva el icono QR azul, nombre Morphiq QR y arranque en `/?app=1`. El navegador habitual muestra el generador; standalone muestra el lector. Los atajos permiten abrir cualquiera de los dos.
 

@@ -131,6 +131,8 @@ test('image windows grow by whole modules; artwork and safe silhouettes decode',
   const svg = renderQrSvg(qr, { margin: 4, silhouette });
   assert.equal(decodePixels(await svgPixels(svg, 1536)), url);
   assert.equal((await QRCheck.run(svg, url)).passed, true);
+  const flush = renderQrSvg(qr, { margin: 0, silhouette });
+  assert.equal((await QRCheck.run(flush, url)).passed, true, 'zero-margin silhouette');
 });
 test('colored popular logos retain their colors through normalization and four QR reads', async (t) => {
   const browser = await installBrowser();

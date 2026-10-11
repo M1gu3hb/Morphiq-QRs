@@ -1,6 +1,6 @@
 # Marcos y referencias
 
-El catálogo contiene 43 marcos vectoriales. Se accede a él desde **Marcos** en el editor normal; no requiere activar las herramientas de estudio. La galería permite buscar y filtrar por familias. La muestra de cada opción contiene un QR de `https://morphiq.com.mx`.
+El catálogo contiene 43 marcos vectoriales. Se accede a él desde **Marcos** en el editor normal; no requiere activar las herramientas de estudio. La galería permite filtrar por familias, sin buscador. La muestra de cada opción contiene un QR de `https://morphiq.com.mx`.
 
 Cada motivo se reconstruye con SVG propio. Las variaciones de tinta, color de fondo, color del texto, tipografía y degradado se editan sobre la misma geometría. Las planchas de referencia no forman parte de los archivos publicados.
 

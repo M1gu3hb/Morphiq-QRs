@@ -1,33 +1,66 @@
 import { decodeQrImage } from '../validation/decoder-client.js';
 import { scanResult } from './result.js';
+import { rebuildQr, visibleVideoRect } from './rebuild.js';
 import { loadImage, readFile } from '../image/image-loader.js';
+import { qrImageFile, shareQrFile } from '../export/share.js';
+import { namespaceSvg } from '../ui/svg.js';
 import { saveFile } from '../utils/files.js';
+
 export function createScanner() {
   const el = (id) => document.getElementById(id),
     video = el('scanner-video'),
+    photo = el('scanner-photo'),
     canvas = document.createElement('canvas');
   let stream = null,
     session = 0,
+    resultRevision = 0,
     facing = 'environment',
     found = null,
+    imageFile = null,
     torch = false,
-    starting = false;
-  const status = (text) => (el('scanner-status').textContent = text);
+    starting = false,
+    timer;
+  const status = (text) => {
+    el('scanner-status').textContent = text;
+    el('scan-result-status').textContent = found ? text : '';
+  };
   function stop() {
     session++;
+    clearTimeout(timer);
     stream?.getTracks().forEach((track) => track.stop());
     stream = null;
     video.srcObject = null;
     el('scanner-stop').hidden = true;
     el('scanner-start').hidden = false;
+    el('scanner-start').disabled = false;
     el('scanner-torch').hidden = true;
+    el('scanner-torch').textContent = 'Linterna';
+    el('scanner-torch').setAttribute('aria-pressed', 'false');
+    torch = false;
     starting = false;
   }
+  function clearResult() {
+    resultRevision++;
+    found = null;
+    imageFile = null;
+    el('scan-result').hidden = true;
+    el('scanner-view').classList.remove('has-result');
+    el('scan-guide').hidden = false;
+    el('scan-rebuilt').replaceChildren();
+    el('scan-open').removeAttribute('href');
+    el('scanner-overlay').classList.remove('detected');
+    el('scanner-polygon').setAttribute('points', '');
+    el('scan-share').disabled = true;
+    el('scan-share').textContent = 'Compartir QR';
+  }
   function display(result, width, height) {
+    const token = ++resultRevision;
     found = scanResult(result.data);
     el('scan-kind').textContent = found.kind;
     el('scan-content').textContent = found.content;
+    el('scan-copy').textContent = found.kind === 'Enlace' ? 'Copiar enlace' : 'Copiar información';
     el('scan-result').hidden = false;
+    el('scanner-view').classList.add('has-result');
     el('scan-open').hidden = !found.href;
     if (found.href) {
       el('scan-open').href = found.href;
@@ -37,52 +70,97 @@ export function createScanner() {
     el('scan-save').textContent = found.kind === 'Contacto' ? 'Guardar contacto' : 'Guardar evento';
     el('scan-guide').hidden = true;
     el('scanner-overlay').setAttribute('viewBox', `0 0 ${width} ${height}`);
-    const l = result.location;
-    if (l)
+    if (result.location) {
+      const l = result.location;
       el('scanner-polygon').setAttribute(
         'points',
         [l.topLeftCorner, l.topRightCorner, l.bottomRightCorner, l.bottomLeftCorner]
           .map((p) => `${p.x},${p.y}`)
           .join(' '),
       );
-    el('scanner-overlay').classList.remove('detected');
-    requestAnimationFrame(() => el('scanner-overlay').classList.add('detected'));
-    status('QR reconocido. Elige cómo abrirlo.');
+    }
+    requestAnimationFrame(() => {
+      if (token === resultRevision) el('scanner-overlay').classList.add('detected');
+    });
+    status('QR reconocido. Elige qué hacer.');
+    el('scan-kind').focus({ preventScroll: true });
+    try {
+      const rebuilt = rebuildQr(found.payload);
+      el('scan-rebuilt').innerHTML = namespaceSvg(rebuilt.svg, 'scanned');
+      el('scan-share').textContent = 'Preparando imagen…';
+      qrImageFile(rebuilt.svg, { size: rebuilt.size, name: 'morphiq-qr-escaneado' })
+        .then((file) => {
+          if (token !== resultRevision) return;
+          imageFile = file;
+          el('scan-share').textContent = 'Compartir QR';
+          el('scan-share').disabled = false;
+        })
+        .catch(() => {
+          if (token === resultRevision) {
+            el('scan-share').textContent = 'Compartir QR';
+            status('Contenido leído. No se pudo preparar la imagen para compartir.');
+          }
+        });
+    } catch {
+      status('Contenido leído. No se pudo reconstruir este QR. Puedes copiar su información.');
+    }
   }
   async function loop(token) {
     if (token !== session || !stream) return;
     try {
-      if (!found && video.readyState >= 2) {
-        const scale = Math.min(1, 800 / video.videoWidth);
-        canvas.width = Math.round(video.videoWidth * scale);
-        canvas.height = Math.round(video.videoHeight * scale);
+      if (video.readyState >= 2 && video.videoWidth && video.videoHeight) {
+        const stage = el('camera-stage').getBoundingClientRect();
+        const crop = visibleVideoRect(
+          video.videoWidth,
+          video.videoHeight,
+          stage.width,
+          stage.height,
+        );
+        const scale = Math.min(1, 1280 / Math.max(crop.width, crop.height));
+        canvas.width = Math.max(1, Math.round(crop.width * scale));
+        canvas.height = Math.max(1, Math.round(crop.height * scale));
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          video,
+          crop.x,
+          crop.y,
+          crop.width,
+          crop.height,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
         const result = await decodeQrImage(ctx.getImageData(0, 0, canvas.width, canvas.height), {
           details: true,
         });
         if (token !== session) return;
-        if (result) display(result, canvas.width, canvas.height);
+        if (result) {
+          photo.src = canvas.toDataURL('image/jpeg', 0.9);
+          photo.hidden = false;
+          video.hidden = true;
+          stop();
+          display(result, canvas.width, canvas.height);
+          return;
+        }
       }
     } catch (error) {
       if (token === session) status(error.message || 'No se pudo leer este cuadro.');
     }
-    if (token === session && stream) setTimeout(() => loop(token), 140);
+    if (token === session && stream) timer = setTimeout(() => loop(token), 140);
   }
   async function start() {
     if (starting) return;
     stop();
+    clearResult();
     starting = true;
     const token = ++session;
-    found = null;
-    el('scan-result').hidden = true;
-    el('scan-guide').hidden = false;
-    el('scanner-overlay').classList.remove('detected');
+    el('scanner-start').disabled = true;
     video.hidden = false;
-    el('scanner-photo').hidden = true;
+    photo.hidden = true;
     if (!navigator.mediaDevices?.getUserMedia) {
       status('La cámara necesita HTTPS y un navegador compatible. Puedes leer una imagen.');
-      starting = false;
+      stop();
       return;
     }
     status('Solicitando cámara…');
@@ -92,16 +170,16 @@ export function createScanner() {
         audio: false,
       });
       if (token !== session) {
-        next.getTracks().forEach((t) => t.stop());
+        next.getTracks().forEach((track) => track.stop());
         return;
       }
       stream = next;
-      video.srcObject = stream;
+      video.srcObject = next;
       await video.play();
       if (token !== session) return;
       el('scanner-stop').hidden = false;
       el('scanner-start').hidden = true;
-      el('scanner-torch').hidden = !stream.getVideoTracks()[0].getCapabilities?.().torch;
+      el('scanner-torch').hidden = !next.getVideoTracks()[0]?.getCapabilities?.().torch;
       status('Buscando QR…');
       loop(token);
     } catch (error) {
@@ -116,7 +194,10 @@ export function createScanner() {
         );
       }
     } finally {
-      if (token === session) starting = false;
+      if (token === session) {
+        starting = false;
+        el('scanner-start').disabled = false;
+      }
     }
   }
   el('scanner-start').addEventListener('click', start);
@@ -130,20 +211,27 @@ export function createScanner() {
     else status('Se usará la cámara ' + (facing === 'environment' ? 'trasera.' : 'frontal.'));
   });
   el('scanner-torch').addEventListener('click', async () => {
+    const track = stream?.getVideoTracks()[0];
+    if (!track) return;
+    const token = session,
+      nextTorch = !torch;
     try {
-      torch = !torch;
-      await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch }] });
+      await track.applyConstraints({ advanced: [{ torch: nextTorch }] });
+      if (token !== session) return;
+      torch = nextTorch;
       el('scanner-torch').textContent = torch ? 'Apagar linterna' : 'Linterna';
+      el('scanner-torch').setAttribute('aria-pressed', String(torch));
     } catch {
-      status('Esta cámara no permite controlar la linterna.');
+      if (token === session) status('Esta cámara no permite controlar la linterna.');
     }
   });
   el('scanner-file').addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
     stop();
+    clearResult();
+    photo.hidden = true;
     const token = ++session;
-    found = null;
     try {
       if (file.size > 15_000_000 || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
         throw new Error('Usa PNG, JPG o WebP de hasta 15 MB.');
@@ -152,8 +240,8 @@ export function createScanner() {
         img = await loadImage(source);
       if (token !== session) return;
       const scale = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
-      canvas.width = Math.round(img.naturalWidth * scale);
-      canvas.height = Math.round(img.naturalHeight * scale);
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const result = await decodeQrImage(ctx.getImageData(0, 0, canvas.width, canvas.height), {
@@ -161,14 +249,10 @@ export function createScanner() {
       });
       if (token !== session) return;
       video.hidden = true;
-      el('scanner-photo').src = source;
-      el('scanner-photo').hidden = false;
+      photo.src = source;
+      photo.hidden = false;
       if (result) display(result, canvas.width, canvas.height);
-      else {
-        el('scan-result').hidden = true;
-        el('scanner-overlay').classList.remove('detected');
-        status('No se encontró un QR legible. Prueba una imagen más nítida.');
-      }
+      else status('No se encontró un QR legible. Prueba una imagen más nítida.');
     } catch (error) {
       if (token === session) status(error.message);
     } finally {
@@ -176,31 +260,49 @@ export function createScanner() {
     }
   });
   el('scan-copy').addEventListener('click', async () => {
+    if (!found) return;
     try {
       await navigator.clipboard.writeText(found.content);
-      status('Contenido copiado.');
+      status(found.kind === 'Enlace' ? 'Enlace copiado.' : 'Información copiada.');
     } catch {
       status('Selecciona el texto del resultado para copiarlo.');
     }
   });
+  el('scan-share').addEventListener('click', async () => {
+    if (!imageFile) return;
+    const token = resultRevision;
+    el('scan-share').disabled = true;
+    try {
+      const result = await shareQrFile(imageFile);
+      if (token !== resultRevision) return;
+      status(
+        result === 'downloaded'
+          ? 'PNG guardado. Puedes adjuntarlo en tu aplicación.'
+          : result === 'shared'
+            ? 'Imagen compartida.'
+            : 'QR reconocido. Elige qué hacer.',
+      );
+    } catch (error) {
+      if (token === resultRevision) status(error.message);
+    } finally {
+      if (token === resultRevision) el('scan-share').disabled = false;
+    }
+  });
   el('scan-save').addEventListener('click', () => {
-    if (found.download)
+    if (found?.download)
       saveFile(
-        new Blob([found.content], { type: found.mime }),
+        new Blob([found.payload], { type: found.mime }),
         found.download,
         'morphiq-' + found.kind,
       );
   });
-  el('scan-again').addEventListener('click', () => {
-    found = null;
-    el('scan-result').hidden = true;
-    el('scanner-overlay').classList.remove('detected');
-    el('scan-guide').hidden = false;
-    if (!stream) start();
-    else status('Buscando QR…');
-  });
+  el('scan-again').addEventListener('click', start);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') stop();
+    if (document.visibilityState === 'hidden') {
+      const wasActive = stream || starting;
+      stop();
+      if (wasActive && !found) status('Cámara pausada. Actívala para seguir leyendo.');
+    }
   });
   window.addEventListener('pagehide', stop);
   return { start, stop };

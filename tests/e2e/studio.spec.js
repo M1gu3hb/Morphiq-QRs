@@ -11,7 +11,7 @@ import { decodePixels } from '../../src/validation/decoder.js';
 const url = 'https://morphiq.com.mx';
 const command = promisify(execFile);
 
-test('camera detection marks the QR and releases the video track on leaving the reader', async ({
+test('fullscreen camera marks and reconstructs the QR, then releases its video track', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -26,19 +26,36 @@ test('camera detection marks the QR and releases the video track on leaving the 
       await image.decode();
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 900;
-      canvas.getContext('2d').drawImage(image, 0, 0);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 900, 900);
+      ctx.drawImage(image, 300, 300, 300, 300);
       const stream = canvas.captureStream(10);
       window.testCameraTrack = stream.getVideoTracks()[0];
       return stream;
     };
   }, source);
   await page.goto('/?view=scan');
+  const stage = await page.locator('#camera-stage').boundingBox();
+  expect(stage).toEqual({ x: 0, y: 0, width: 1440, height: 1000 });
   expect(await page.evaluate(() => window.testCameraTrack)).toBeUndefined();
   await page.locator('#scanner-start').click();
   await expect(page.locator('#scan-content')).toHaveText(url, { timeout: 20_000 });
   await expect(page.locator('#scanner-overlay')).toHaveClass('detected');
-  expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('live');
+  await expect(page.locator('#scan-rebuilt svg')).toBeVisible();
+  expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('ended');
   await page.locator('#nav-studio').click();
+  expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('ended');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#nav-scan').click();
+  expect(await page.locator('#camera-stage').boundingBox()).toEqual({
+    x: 0,
+    y: 0,
+    width: 390,
+    height: 844,
+  });
+  await page.locator('#scan-again').click();
+  await expect(page.locator('#scan-rebuilt svg')).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('ended');
 });
 async function check(page) {
@@ -180,6 +197,7 @@ test('reference frames stay outside study mode, all labels export, and mobile pr
   await page.locator('#border-settings > summary > span').click();
   await page.locator('#border-enabled').check();
   await page.locator('#border-gallery > summary').click();
+  await expect(page.locator('#border-search')).toHaveCount(0);
   await expect(page.locator('#border-options [data-border]')).toHaveCount(43);
   const section = await page.locator('.control-section').first().boundingBox();
   const preview = await page.locator('.preview-column').boundingBox();
@@ -302,6 +320,8 @@ test('framed vector and bitmap PDFs match the readable exported design and print
     .locator('#silhouette-file')
     .setInputFiles({ name: 'circle.png', mimeType: 'image/png', buffer: contour });
   await expect(page.locator('#silhouette-enabled')).toBeChecked();
+  await expect(page.locator('#margin')).toHaveValue('0');
+  await expect(page.locator('#border-enabled')).not.toBeChecked();
   const shapePdf = await download(page, 'pdf', info, 'silhouette');
   await command('pdftoppm', [
     '-singlefile',

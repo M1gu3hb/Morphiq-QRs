@@ -10,14 +10,11 @@ export function initFrames(studio) {
     group = 'Todos';
   const colors = ['border-color', 'border-text-color', 'border-accent-color'];
   function filter() {
-    const query = el('border-search').value.toLocaleLowerCase('es');
     el('border-options')
       .querySelectorAll('[data-border]')
       .forEach((button) => {
         const frame = getFrame(button.dataset.border);
-        button.hidden =
-          (group !== 'Todos' && frame.group !== group) ||
-          !`${frame.name} ${frame.group}`.toLocaleLowerCase('es').includes(query);
+        button.hidden = group !== 'Todos' && frame.group !== group;
       });
     el('border-filter')
       .querySelectorAll('button')
@@ -64,7 +61,6 @@ export function initFrames(studio) {
     group = button.textContent;
     filter();
   });
-  el('border-search').addEventListener('input', filter);
   el('border-options').addEventListener('click', (event) => {
     const button = event.target.closest('[data-border]');
     if (!button || studio.busy) return;

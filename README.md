@@ -31,14 +31,15 @@ Vite genera `dist/`; el script posterior crea el service worker con un hash del 
 - **Colores:** selector propio con saturación, brillo, tono, HEX y RGB; 8 paletas; tinta sólida, degradado lineal/radial y dúo tono con dirección editable.
 - **Imagen:** PNG/JPG/WebP y SVG sanitizado, recorte automático, área por módulos completos, zoom independiente, desplazamiento X/Y continuo, arrastre, base de color y eliminación de fondo uniforme con restauración. El editor aparece únicamente con una imagen activa.
 - **Integración:** imagen central, trama QR, textura dentro de módulos y fotografía de fondo. Símbolo Morphiq y 9 símbolos populares a color listos para usar.
-- **Marcos:** 43 opciones disponibles en el editor normal, organizadas por familias y con búsqueda. Muestras reales, hasta tres campos de texto independientes, saltos de línea, tipografías, colores y degradados editables, además de mezcla independiente de formas y paletas. [Correspondencia de referencias](docs/frame-references.md).
-- **Siluetas PNG:** contorno con trama decorativa y un QR completo dentro de una zona interior opaca. Conserva la matriz legible; no deforma ni redistribuye los datos del QR.
+- **Marcos:** 43 opciones disponibles en el editor normal, organizadas por familias. Muestras reales, hasta tres campos de texto independientes, saltos de línea, tipografías, colores y degradados editables, además de mezcla independiente de formas y paletas. [Correspondencia de referencias](docs/frame-references.md).
+- **Siluetas PNG:** contorno con trama decorativa y un QR completo dentro de una zona interior opaca. Al elegir una silueta, el margen pasa a cero y se desactiva el marco. Conserva la matriz completa; no deforma ni redistribuye los datos del QR.
 - **Proyectos:** autoguardado y hasta 100 proyectos locales en IndexedDB; exportación/importación JSON para respaldarlos o transferirlos.
 - **Estudio:** comparación A/B, mezcla general o por elemento y reparación asistida que presenta una variante comprobada antes de aplicarla. Las sugerencias se pueden cerrar y las reparaciones se pueden deshacer conservando cambios posteriores de contenido. Vista previa flotante ampliable y minimizable al recorrer los controles.
 - **Impresión:** ancho físico de 15–200 mm, 300/600 dpi, medidas proporcionales, densidad PNG/JPG, SVG con medidas en milímetros, PDF y etiquetas A4.
 - **Lotes:** hasta 100 QRs por ligas o CSV; salida ZIP en PNG/SVG/PDF, con cuatro lecturas por elemento y un reporte de archivos válidos y omitidos.
 - **Descargas:** PNG, SVG, PDF, JPG y WebP. Los módulos y marcos permanecen vectoriales en SVG/PDF; las fotografías se conservan como imágenes integradas.
-- **Lector:** cámara, cambio de cámara, linterna cuando el dispositivo la permite, lectura de imágenes, contorno luminoso al detectar, copia y acciones explícitas para abrir enlaces o guardar contactos/eventos. No abre enlaces automáticamente.
+- **Lector:** cámara a pantalla completa, cambio de cámara, linterna cuando el dispositivo la permite y lectura de imágenes. Al detectar, marca el código, apaga la cámara y reconstruye un QR completo con el contenido exacto. Permite compartir el PNG, copiar información, abrir enlaces, llamar, escribir mensajes o guardar contactos/eventos mediante acciones explícitas. No abre enlaces automáticamente.
+- **Compartir QR:** disponible en generador y lector. Envía únicamente el archivo PNG mediante el menú nativo; no añade texto, título ni URL. Si el navegador no comparte archivos, guarda el PNG para adjuntarlo manualmente. El generador comprueba cuatro lecturas antes de compartir.
 - **PWA:** mismo nombre e icono azul. En navegador abre el generador; instalada abre el lector. Tras la primera carga completa, generación, lectura de imágenes y exportadores funcionan sin conexión.
 - Fondo ASCII animado, tarjetas independientes, expandidores fluidos, interfaz adaptable y metadatos de imagen para compartir.
 
@@ -83,7 +84,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` ejecuta pruebas unitarias, integración y compilación. Las pruebas de navegador comprueban formularios, autoguardado, edición por módulos, reparación sugerida, PDF legible, densidad de impresión, lotes y PWA/lector sin conexión. Para esas pruebas se requiere Poppler (`pdftoppm`) en el sistema. Un Chromium ya instalado puede indicarse mediante `MORPHIQ_BROWSER_EXECUTABLE`.
+`check` ejecuta pruebas unitarias, integración y compilación. Las pruebas de navegador comprueban los 13 formularios, autoguardado y respaldos, edición por módulos, reparación sugerida, PDF legible, densidad de impresión, lotes, compartir PNG, permisos de cámara, móvil vertical/horizontal y PWA/lector sin conexión. Para esas pruebas se requiere Poppler (`pdftoppm`) en el sistema. Un Chromium ya instalado puede indicarse mediante `MORPHIQ_BROWSER_EXECUTABLE`.
 
 GitHub Actions ejecuta las comprobaciones en cada push y pull request de `main`.
 

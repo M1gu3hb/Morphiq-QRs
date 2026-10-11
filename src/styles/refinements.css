@@ -31,17 +31,6 @@
   background: #163663;
   color: #fff;
 }
-#border-search {
-  width: calc(100% - 24px);
-  margin: 6px 12px 0;
-  padding: 10px;
-  background: #080f1b;
-  border: 1px solid #2b3545;
-  border-radius: 6px;
-  color: #e4edfa;
-  font: inherit;
-  font-size: 13px;
-}
 .frame-text-field {
   margin-top: 14px;
 }

@@ -540,12 +540,6 @@ https://morphiq.com.mx</textarea>
                     role="group"
                     aria-label="Familias de marcos"
                   ></div>
-                  <input
-                    id="border-search"
-                    type="search"
-                    placeholder="Buscar marco"
-                    aria-label="Buscar marco"
-                  />
                   <div id="border-options" class="frame-options"></div>
                 </details>
                 <div class="frame-text-field">
@@ -865,6 +859,10 @@ morphiq.com.mx</textarea>
             ><span id="download-label">Descargar PNG</span>
           </button>
           <p class="small-note" id="export-note"></p>
+          <button type="button" class="share-button" id="share-qr" data-state="idle">
+            Compartir QR
+          </button>
+          <p class="small-note share-status" id="share-status" role="status" aria-live="polite"></p>
           <details id="preview-inspector" class="studio-details preview-inspector">
             <summary>Revisión y variantes</summary>
             <div class="preview-tools">
@@ -934,11 +932,12 @@ morphiq.com.mx</textarea>
       </div>
       <div class="scanner-layout">
         <section class="scanner-camera">
-          <div class="camera-stage">
+          <div class="camera-stage" id="camera-stage">
             <video id="scanner-video" playsinline muted></video
             ><img id="scanner-photo" alt="Imagen para leer" hidden /><svg
               id="scanner-overlay"
               aria-hidden="true"
+              preserveAspectRatio="xMidYMid slice"
             >
               <polygon id="scanner-polygon" points="" />
             </svg>
@@ -963,15 +962,27 @@ morphiq.com.mx</textarea>
             Cámara e imágenes se procesan en este dispositivo.
           </p>
         </section>
-        <aside class="scan-result" id="scan-result" hidden>
+        <aside class="scan-result" id="scan-result" aria-labelledby="scan-kind" hidden>
           <span class="eyebrow">QR DETECTADO</span>
-          <h2 id="scan-kind"></h2>
+          <h2 id="scan-kind" tabindex="-1"></h2>
+          <div
+            id="scan-rebuilt"
+            class="scan-rebuilt"
+            role="img"
+            aria-label="QR reconstruido con el contenido detectado"
+          ></div>
           <pre id="scan-content"></pre>
-          <a id="scan-open" class="download" target="_blank" rel="noopener noreferrer" hidden
-            >Abrir enlace</a
-          ><button id="scan-copy" type="button" class="tool-button">Copiar contenido</button
-          ><button id="scan-save" type="button" class="tool-button" hidden>Guardar</button
-          ><button id="scan-again" type="button" class="tool-button">Leer otro QR</button>
+          <div class="scan-actions">
+            <button id="scan-share" type="button" class="share-button" disabled>
+              Compartir QR
+            </button>
+            <a id="scan-open" class="download" target="_blank" rel="noopener noreferrer" hidden
+              >Abrir enlace</a
+            ><button id="scan-copy" type="button" class="tool-button">Copiar contenido</button
+            ><button id="scan-save" type="button" class="tool-button" hidden>Guardar</button
+            ><button id="scan-again" type="button" class="tool-button">Leer otro QR</button>
+          </div>
+          <p id="scan-result-status" class="small-note" role="status" aria-live="polite"></p>
         </aside>
       </div>
     </main>

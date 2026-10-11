@@ -23,7 +23,8 @@ import { createToast } from '../ui/toast.js';
 
 export function createStudio() {
   const pixelSizes = PIXEL_SIZES;
-  let silhouette = null;
+  let silhouette = null,
+    activeSilhouette = null;
   const content = createContentController(() => {
     clearTimeout(inputTimer);
     render();
@@ -299,11 +300,19 @@ export function createStudio() {
       ? 'Preparando…'
       : 'Descargar ' + exportFormat.toUpperCase();
     $('download').disabled = !qr || !validColors() || exporting || uploading || checking;
+    $('share-qr').disabled =
+      $('download').disabled || ['preparing', 'sharing'].includes($('share-qr').dataset.state);
     $('check-qr').disabled = !qr || exporting || uploading || checking;
     $('check-label').textContent = checking ? 'Comprobando…' : 'Comprobar QR';
     updateStyleControls({ module: moduleStyle, eye: eyeStyle, center: centerStyle });
   }
   function render() {
+    const active = readAdvancedOptions(silhouette).silhouette;
+    if (active && active !== activeSilhouette) {
+      $('margin').value = '0';
+      $('border-enabled').checked = false;
+    }
+    activeSilhouette = active;
     try {
       encodedUrl = content.payload();
       if (hasLogo()) setEcc('H');
@@ -689,6 +698,8 @@ export function createStudio() {
     restoreFields(state.fields);
     logo = nextLogo;
     silhouette = nextSilhouette;
+    // A saved project already contains deliberate margin/frame choices.
+    activeSilhouette = $('silhouette-enabled').checked ? silhouette : null;
     logoRevision++;
     const styles = state.styles || {};
     moduleStyle = QRStyles.modules.some((m) => m.id === styles.module) ? styles.module : 'square';
@@ -727,6 +738,11 @@ export function createStudio() {
     getSvg: () => (qr ? svgMarkup() : ''),
     setSilhouette(value) {
       silhouette = value;
+      if (value && $('silhouette-enabled').checked) {
+        $('margin').value = '0';
+        $('border-enabled').checked = false;
+        activeSilhouette = value;
+      }
       render();
     },
   };

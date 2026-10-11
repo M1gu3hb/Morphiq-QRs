@@ -4,27 +4,36 @@ export async function initProjects(studio) {
   const el = (id) => document.getElementById(id);
   let timer,
     ready = false,
+    revision = 0,
     saving = Promise.resolve();
   const status = (text) => (el('autosave-status').textContent = text);
-  function autosave() {
-    if (!ready) return;
-    clearTimeout(timer);
-    status('Guardando…');
-    timer = setTimeout(() => {
-      const record = {
-        id: 'autosave',
-        name: 'Borrador',
-        updated: Date.now(),
-        state: studio.getState(),
-      };
-      saving = saving
-        .then(() => projectStore.save(record))
-        .then(() => status('Guardado en este dispositivo'))
-        .catch((error) => {
+  function saveDraft(throwOnError = false) {
+    const token = revision;
+    const record = {
+      id: 'autosave',
+      name: 'Borrador',
+      updated: Date.now(),
+      state: studio.getState(),
+    };
+    const write = saving.then(() => projectStore.save(record));
+    saving = write
+      .then(() => {
+        if (token === revision) status('Guardado en este dispositivo');
+      })
+      .catch((error) => {
+        if (token === revision) {
           status('Sin autoguardado');
           el('projects-status').textContent = error.message;
-        });
-    }, 650);
+        }
+      });
+    return throwOnError ? write : saving;
+  }
+  function autosave() {
+    if (!ready) return;
+    revision++;
+    clearTimeout(timer);
+    status('Guardando…');
+    timer = setTimeout(saveDraft, 650);
   }
   async function list() {
     try {
@@ -151,9 +160,8 @@ export async function initProjects(studio) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && ready) {
       clearTimeout(timer);
-      projectStore
-        .save({ id: 'autosave', name: 'Borrador', updated: Date.now(), state: studio.getState() })
-        .catch(() => {});
+      revision++;
+      saveDraft();
     }
   });
   try {
@@ -166,4 +174,11 @@ export async function initProjects(studio) {
     status('Sin autoguardado');
     el('projects-status').textContent = error.message;
   }
+  return {
+    flushDraft() {
+      clearTimeout(timer);
+      revision++;
+      return saveDraft(true);
+    },
+  };
 }

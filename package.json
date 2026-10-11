@@ -1,6 +1,6 @@
 {
   "name": "morphiq-qrs",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "Estudio QR de Morphiq, con personalización y verificación local en el navegador.",
