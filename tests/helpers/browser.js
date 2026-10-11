@@ -96,6 +96,7 @@ export async function installBrowser() {
     node.getBoundingClientRect = () => ({ left: 0, top: 0, width: 150, height: 150 });
   }
   setGlobal('document', document);
+  setGlobal('DOMParser', window.DOMParser);
   setGlobal('window', window);
   setGlobal('Image', TestImage);
   setGlobal('FileReader', TestFileReader);

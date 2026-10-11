@@ -34,10 +34,27 @@ export const QRCheck = (() => {
         if (i === 2) {
           ctx.translate(side / 2, side / 2);
           ctx.rotate((3 * Math.PI) / 180);
-          ctx.drawImage(img, -side * 0.46, -side * 0.46, side * 0.92, side * 0.92);
+          const scale = Math.min(
+            (side * 0.92) / img.naturalWidth,
+            (side * 0.92) / img.naturalHeight,
+          );
+          ctx.drawImage(
+            img,
+            (-img.naturalWidth * scale) / 2,
+            (-img.naturalHeight * scale) / 2,
+            img.naturalWidth * scale,
+            img.naturalHeight * scale,
+          );
         } else {
           if (i === 3) ctx.filter = 'blur(0.45px)';
-          ctx.drawImage(img, 0, 0, side, side);
+          const scale = Math.min(side / img.naturalWidth, side / img.naturalHeight);
+          ctx.drawImage(
+            img,
+            (side - img.naturalWidth * scale) / 2,
+            (side - img.naturalHeight * scale) / 2,
+            img.naturalWidth * scale,
+            img.naturalHeight * scale,
+          );
           ctx.filter = 'none';
         }
         // Read a real encoded JPEG/WebP as well as the uncompressed SVG rendering.

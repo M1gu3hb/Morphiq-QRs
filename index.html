@@ -11,6 +11,9 @@
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="canonical" href="https://morphiqqr.vercel.app/" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta property="og:type" content="website" />
@@ -64,6 +67,12 @@
         </div>
         <span class="product">QR</span>
       </div>
+      <nav class="app-nav" aria-label="Herramientas">
+        <button id="nav-studio" type="button" aria-pressed="true">Crear QR</button
+        ><button id="nav-scan" type="button" aria-pressed="false">Leer QR</button
+        ><button id="nav-projects" type="button">Proyectos</button
+        ><button id="install-app" type="button" hidden>Instalar</button>
+      </nav>
       <button id="reset" class="header-action" type="button" title="Restablecer ajustes">
         <svg
           viewBox="0 0 24 24"
@@ -80,10 +89,13 @@
         ><span>Restablecer</span>
       </button>
     </header>
-    <main>
+    <main id="studio-view">
       <div class="page-title">
         <h1>Generador QR</h1>
-        <span class="index">MORPHIQ / 001</span>
+        <div class="title-actions">
+          <span id="autosave-status" class="index">Autoguardado local</span
+          ><button type="button" id="random-all" class="tool-button">Mezclar diseño</button>
+        </div>
       </div>
       <div class="workbench">
         <div class="controls">
@@ -92,27 +104,37 @@
               <h2>Contenido</h2>
               <span class="section-no">01</span>
             </div>
-            <div class="line-label">
-              <label for="url" class="field-label">Liga de destino</label
-              ><button id="paste" class="paste" type="button">Pegar</button>
-            </div>
-            <textarea
-              id="url"
-              placeholder="https://"
-              rows="2"
-              spellcheck="false"
-              autocomplete="off"
-              inputmode="url"
-            >
+            <div
+              id="content-types"
+              class="content-types"
+              role="group"
+              aria-label="Tipo de contenido"
+            ></div>
+            <div id="content-fields"></div>
+            <div id="url-content">
+              <div class="line-label">
+                <label for="url" class="field-label">Liga de destino</label
+                ><button id="paste" class="paste" type="button">Pegar</button>
+              </div>
+              <textarea
+                id="url"
+                placeholder="https://"
+                rows="2"
+                spellcheck="false"
+                autocomplete="off"
+                inputmode="url"
+              >
 https://morphiq.com.mx</textarea>
-            <div class="input-meta">
-              <span id="url-meta">https:// automático</span
-              ><span id="char-count">21 caracteres</span>
+              <div class="input-meta">
+                <span id="url-meta">https:// automático</span
+                ><span id="char-count">21 caracteres</span>
+              </div>
             </div>
           </section>
           <section class="control-section styles-section">
             <div class="section-heading">
               <h2>Tipos de QR</h2>
+              <button type="button" class="mini-action" data-random="design">Mezclar</button>
               <span class="section-no">02</span>
             </div>
             <details class="style-menu preset-menu" id="preset-menu">
@@ -121,7 +143,7 @@ https://morphiq.com.mx</textarea>
                 ><span class="summary-text"
                   ><span class="menu-label">Diseño completo</span
                   ><span class="menu-value" id="preset-name">Clásico</span></span
-                ><span id="preset-count" class="menu-count">64 estilos</span
+                ><span id="preset-count" class="menu-count">32 estilos</span
                 ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                   <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
                 </svg>
@@ -134,7 +156,14 @@ https://morphiq.com.mx</textarea>
                 aria-label="Diseños de QR"
               ></div>
             </details>
-            <div class="custom-heading">Combinar formas</div>
+            <div class="custom-heading">
+              Combinar formas
+              <span class="inline-actions"
+                ><button type="button" data-random="module">Módulos ↻</button
+                ><button type="button" data-random="eye">Esquinas ↻</button
+                ><button type="button" data-random="center">Centros ↻</button></span
+              >
+            </div>
             <div class="shape-menus">
               <details class="style-menu shape-menu" id="module-menu">
                 <summary>
@@ -142,7 +171,7 @@ https://morphiq.com.mx</textarea>
                   ><span class="summary-text"
                     ><span class="menu-label">Módulos</span
                     ><span class="menu-value" id="module-name">Rectos</span></span
-                  ><span id="module-count" class="menu-count">41</span
+                  ><span id="module-count" class="menu-count">18</span
                   ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
                   </svg>
@@ -317,7 +346,7 @@ https://morphiq.com.mx</textarea>
           </section>
           <section class="control-section">
             <div class="section-heading">
-              <h2>Imagen central</h2>
+              <h2>Imagen</h2>
               <span class="section-no">04</span>
             </div>
             <label class="switch-label"
@@ -327,7 +356,7 @@ https://morphiq.com.mx</textarea>
               <input
                 id="logo-file"
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
                 class="visually-hidden"
               /><button id="upload" class="upload-button" type="button">
                 <svg
@@ -345,10 +374,26 @@ https://morphiq.com.mx</textarea>
                 >Subir imagen</button
               ><button id="use-brand" class="brand-button" type="button">Usar Morphiq</button>
             </div>
+            <div
+              id="popular-logos"
+              class="popular-logos"
+              role="group"
+              aria-label="Símbolos populares"
+            ></div>
             <div class="image-settings" id="image-settings">
+              <label class="select-label" for="image-mode">Integración</label
+              ><select id="image-mode">
+                <option value="center">Imagen central</option>
+                <option value="texture">Imagen en los módulos</option>
+                <option value="background">Imagen de fondo + trama QR</option>
+              </select>
               <div class="image-file">
                 <span id="image-name"></span
                 ><button id="remove-logo" class="remove-image" type="button">Quitar</button>
+              </div>
+              <div class="inline-actions image-background-actions">
+                <button type="button" id="remove-image-background">Quitar fondo uniforme</button>
+                <button type="button" id="restore-image-background" hidden>Restaurar fondo</button>
               </div>
               <div class="image-framing">
                 <div
@@ -372,17 +417,17 @@ https://morphiq.com.mx</textarea>
               </div>
               <div class="control-row">
                 <div class="slider-head">
-                  <label for="logo-size" class="field-label">Área dentro del QR</label
-                  ><output id="logo-size-value" for="logo-size">24%</output>
+                  <label for="logo-size" class="field-label">Área · módulos completos</label
+                  ><output id="logo-size-value" for="logo-size">7 módulos</output>
                 </div>
                 <input
                   class="range"
                   id="logo-size"
                   type="range"
-                  min="8"
-                  max="30"
+                  min="2"
+                  max="8"
                   step="1"
-                  value="24"
+                  value="7"
                 />
               </div>
               <div class="control-row">
@@ -410,8 +455,8 @@ https://morphiq.com.mx</textarea>
                     class="range"
                     id="image-x"
                     type="range"
-                    min="-100"
-                    max="100"
+                    min="-5"
+                    max="5"
                     step="1"
                     value="0"
                   />
@@ -425,8 +470,8 @@ https://morphiq.com.mx</textarea>
                     class="range"
                     id="image-y"
                     type="range"
-                    min="-100"
-                    max="100"
+                    min="-5"
+                    max="5"
                     step="1"
                     value="0"
                   />
@@ -474,6 +519,211 @@ https://morphiq.com.mx</textarea>
               </div>
             </div>
           </section>
+          <section class="control-section advanced-toggle">
+            <label class="switch-label"
+              ><input id="advanced-enabled" type="checkbox" />Herramientas de estudio</label
+            >
+          </section>
+          <div id="advanced-tools" hidden>
+            <section class="control-section">
+              <details class="studio-details" id="color-effects-menu">
+                <summary>
+                  Degradados y paletas
+                  <button type="button" class="mini-action" data-random="palette">Mezclar</button>
+                </summary>
+                <div class="control-row">
+                  <label for="gradient-mode" class="select-label">Tinta</label
+                  ><select id="gradient-mode">
+                    <option value="none">Color sólido</option>
+                    <option value="linear">Degradado lineal</option>
+                    <option value="radial">Degradado radial</option>
+                    <option value="duo">Dúo tono</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="small-label" for="pick-gradient-color">Segundo color</label
+                  ><input id="gradient-color" type="hidden" value="#123ca3" /><button
+                    id="pick-gradient-color"
+                    type="button"
+                    class="color-trigger"
+                    data-picker="gradient-color"
+                    aria-label="Elegir Segundo color"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                  >
+                    <span class="color-chip"></span><output id="gradient-color-hex">#123ca3</output>
+                  </button>
+                </div>
+                <div class="slider-head">
+                  <label for="gradient-angle">Dirección</label
+                  ><output id="gradient-angle-value">90°</output>
+                </div>
+                <input
+                  class="range"
+                  id="gradient-angle"
+                  type="range"
+                  min="0"
+                  max="360"
+                  value="90"
+                />
+                <div id="palette-options" class="palette-options"></div>
+                <button type="button" class="mini-action" data-random="gradient">
+                  Mezclar degradado
+                </button>
+              </details>
+            </section>
+            <section class="control-section">
+              <details class="studio-details" id="border-settings">
+                <summary>
+                  Marcos
+                  <button type="button" class="mini-action" data-random="border">Mezclar</button>
+                </summary>
+                <label class="switch-label"
+                  ><input id="border-enabled" type="checkbox" />Activar marco</label
+                ><input id="border-type" type="hidden" value="band" />
+                <div id="border-controls" hidden>
+                  <details class="style-menu">
+                    <summary>
+                      <span id="border-name">Banda</span><span class="menu-count">14 marcos</span>
+                    </summary>
+                    <div id="border-options" class="frame-options"></div>
+                  </details>
+                  <label class="select-label" for="border-text">Texto del marco</label
+                  ><input id="border-text" type="text" maxlength="60" value="Escanéame" />
+                  <button type="button" class="mini-action" data-random="border-palette">
+                    Mezclar colores del marco
+                  </button>
+                  <div class="two-cols">
+                    <div>
+                      <label class="small-label" for="pick-border-color">Marco</label
+                      ><input id="border-color" type="hidden" value="#123ca3" /><button
+                        id="pick-border-color"
+                        type="button"
+                        class="color-trigger"
+                        data-picker="border-color"
+                        aria-label="Elegir Marco"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                      >
+                        <span class="color-chip"></span
+                        ><output id="border-color-hex">#123ca3</output>
+                      </button>
+                    </div>
+                    <div>
+                      <label class="small-label" for="pick-border-text-color">Texto</label
+                      ><input id="border-text-color" type="hidden" value="#ffffff" /><button
+                        id="pick-border-text-color"
+                        type="button"
+                        class="color-trigger"
+                        data-picker="border-text-color"
+                        aria-label="Elegir Texto"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                      >
+                        <span class="color-chip"></span
+                        ><output id="border-text-color-hex">#ffffff</output>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </section>
+            <section class="control-section">
+              <details class="studio-details">
+                <summary>Silueta PNG</summary>
+                <label class="switch-label"
+                  ><input id="silhouette-enabled" type="checkbox" />QR dentro de una forma</label
+                ><label class="select-label" for="silhouette-file">PNG con transparencia</label
+                ><input id="silhouette-file" type="file" accept="image/png" />
+                <p id="silhouette-name" class="small-note">
+                  Elige una forma con un área interior amplia.
+                </p>
+                <button id="remove-silhouette" type="button" class="tool-button">
+                  Quitar silueta
+                </button>
+              </details>
+            </section>
+            <section class="control-section" id="campaign-available">
+              <details class="studio-details">
+                <summary>Campaña · etiquetas UTM</summary>
+                <label class="switch-label"
+                  ><input id="campaign-enabled" type="checkbox" />Etiquetar esta liga</label
+                >
+                <div class="two-cols">
+                  <div>
+                    <label class="select-label" for="utm-source">Origen</label
+                    ><input id="utm-source" placeholder="tarjeta" />
+                  </div>
+                  <div>
+                    <label class="select-label" for="utm-medium">Medio</label
+                    ><input id="utm-medium" placeholder="qr" />
+                  </div>
+                </div>
+                <label class="select-label" for="utm-campaign">Campaña</label
+                ><input id="utm-campaign" placeholder="octubre" /><label
+                  class="select-label"
+                  for="utm-content"
+                  >Identificador</label
+                ><input id="utm-content" placeholder="sucursal-xochimilco" />
+                <p class="small-note">Las etiquetas viajan en tu propia liga.</p>
+              </details>
+            </section>
+            <section class="control-section">
+              <details class="studio-details">
+                <summary>Modo impresión</summary>
+                <label class="switch-label"
+                  ><input id="print-enabled" type="checkbox" />Definir medidas físicas</label
+                >
+                <div id="print-controls" hidden>
+                  <label class="select-label" for="print-width">Ancho final · mm</label
+                  ><input id="print-width" type="number" min="15" max="200" value="50" /><label
+                    class="select-label"
+                    for="print-dpi"
+                    >Resolución de impresión</label
+                  ><select id="print-dpi">
+                    <option value="300">300 dpi</option>
+                    <option value="600">600 dpi</option></select
+                  ><output id="print-dimensions" class="print-dimensions"></output>
+                  <p id="print-advice" class="small-note"></p>
+                  <button id="print-sheet" type="button" class="tool-button">
+                    Descargar etiquetas A4 · PDF
+                  </button>
+                </div>
+              </details>
+            </section>
+            <section class="control-section">
+              <details class="studio-details">
+                <summary>Generación por lotes</summary>
+                <label class="select-label" for="batch-input">Una liga por línea o CSV</label
+                ><textarea
+                  id="batch-input"
+                  rows="4"
+                  placeholder="nombre,tipo,url&#10;Morphiq,url,https://morphiq.com.mx"
+                ></textarea
+                ><label class="select-label" for="batch-file">Importar CSV</label
+                ><input id="batch-file" type="file" accept=".csv,text/csv" />
+                <p class="small-note">
+                  CSV: nombre, tipo y campos del contenido. Hasta 100 QRs; usa el diseño actual.
+                </p>
+                <button id="batch-template" class="tool-button" type="button">
+                  CSV de ejemplo
+                </button>
+                <div class="two-cols">
+                  <select id="batch-format" aria-label="Formato del lote">
+                    <option value="svg">SVG</option>
+                    <option value="png">PNG</option>
+                    <option value="pdf">PDF</option></select
+                  ><button id="batch-generate" type="button" class="tool-button">
+                    Generar ZIP
+                  </button>
+                </div>
+                <button id="batch-cancel" type="button" class="tool-button" hidden>Cancelar</button
+                ><progress id="batch-progress" value="0" max="100" hidden></progress>
+                <p id="batch-status" class="small-note" role="status"></p>
+                <div id="batch-preview" class="batch-preview"></div>
+              </details>
+            </section>
+          </div>
           <section class="control-section">
             <div class="section-heading">
               <h2>Exportación</h2>
@@ -554,6 +804,12 @@ https://morphiq.com.mx</textarea>
             ><span id="download-label">Descargar PNG</span>
           </button>
           <p class="small-note" id="export-note"></p>
+          <div class="preview-tools">
+            <button id="compare-save" type="button" class="tool-button">Guardar variante A</button
+            ><button id="repair-qr" type="button" class="tool-button">Sugerir reparación</button>
+          </div>
+          <div id="repair-result" class="variant-result" hidden></div>
+          <div id="compare-panel" class="compare-panel" hidden></div>
           <button type="button" class="check-button" id="check-qr">
             <svg
               viewBox="0 0 24 24"
@@ -591,6 +847,86 @@ https://morphiq.com.mx</textarea>
         </aside>
       </div>
     </main>
+    <main id="scanner-view" hidden>
+      <div class="page-title">
+        <h1>Lector QR</h1>
+        <span class="index">MORPHIQ / SCAN</span>
+      </div>
+      <div class="scanner-layout">
+        <section class="scanner-camera">
+          <div class="camera-stage">
+            <video id="scanner-video" playsinline muted></video
+            ><img id="scanner-photo" alt="Imagen para leer" hidden /><svg
+              id="scanner-overlay"
+              aria-hidden="true"
+            >
+              <polygon id="scanner-polygon" points="" />
+            </svg>
+            <div class="scan-guide" id="scan-guide">
+              <i></i><span>Coloca el QR dentro de la cámara</span>
+            </div>
+          </div>
+          <div class="camera-controls">
+            <button id="scanner-start" type="button" class="tool-button">Activar cámara</button
+            ><button id="scanner-stop" type="button" class="tool-button" hidden>Detener</button
+            ><button id="scanner-switch" type="button" class="tool-button">Cambiar cámara</button
+            ><button id="scanner-torch" type="button" class="tool-button" hidden>Linterna</button
+            ><label class="tool-button" for="scanner-file"
+              >Leer imagen<input
+                id="scanner-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="visually-hidden"
+            /></label>
+          </div>
+          <p id="scanner-status" role="status" aria-live="polite">
+            Cámara e imágenes se procesan en este dispositivo.
+          </p>
+        </section>
+        <aside class="scan-result" id="scan-result" hidden>
+          <span class="eyebrow">QR DETECTADO</span>
+          <h2 id="scan-kind"></h2>
+          <pre id="scan-content"></pre>
+          <a id="scan-open" class="download" target="_blank" rel="noopener noreferrer" hidden
+            >Abrir enlace</a
+          ><button id="scan-copy" type="button" class="tool-button">Copiar contenido</button
+          ><button id="scan-save" type="button" class="tool-button" hidden>Guardar</button
+          ><button id="scan-again" type="button" class="tool-button">Leer otro QR</button>
+        </aside>
+      </div>
+    </main>
+    <footer>
+      Created by
+      <a href="https://morphiq.com.mx" target="_blank" rel="noopener noreferrer">Morphiq</a>
+    </footer>
+    <dialog id="projects-dialog" class="projects-dialog">
+      <div class="dialog-head">
+        <h2>Mis proyectos</h2>
+        <button id="projects-close" type="button" class="tool-button">Cerrar</button>
+      </div>
+      <div class="project-save">
+        <label class="select-label" for="project-name">Nombre</label
+        ><input id="project-name" maxlength="60" placeholder="Mi QR" /><button
+          id="project-save"
+          type="button"
+          class="tool-button"
+        >
+          Guardar proyecto</button
+        ><button id="project-export" type="button" class="tool-button">Exportar proyecto</button
+        ><label class="tool-button" for="project-import"
+          >Importar<input
+            id="project-import"
+            type="file"
+            accept="application/json,.json"
+            class="visually-hidden"
+        /></label>
+      </div>
+      <p class="small-note">
+        Guardado en este navegador. Exporta un respaldo para conservarlo en otro dispositivo.
+      </p>
+      <div id="projects-list" class="projects-list"></div>
+      <p id="projects-status" role="status"></p>
+    </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <div id="color-picker" class="color-picker" hidden>

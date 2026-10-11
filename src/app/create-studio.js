@@ -1,13 +1,19 @@
+import { physicalSvg, withDpi } from '../export/print-metadata.js';
+import { namespaceSvg } from '../ui/svg.js';
+import { createContentController } from '../content/controller.js';
+import { readAdvancedOptions, resetAdvanced } from '../advanced/options.js';
+import { captureFields, restoreFields, validImage, validSilhouette } from '../projects/state.js';
+import { readableDesign } from '../qr/color-effects.js';
 import { bindImageEditor } from '../ui/image-editor.js';
 import { $, buttons } from '../ui/dom.js';
 import { PIXEL_SIZES, DEFAULT_FIELDS } from './defaults.js';
-import { normalizeLink, encodeLink, outputDimension } from '../qr/encoder.js';
+import { encodePayload, outputDimension, imageRoom } from '../qr/encoder.js';
+import { artGeometry } from '../image/art.js';
 import { QRStyles } from '../qr/styles.js';
 import { QRImage } from '../image/framing.js';
 import { renderQrSvg } from '../qr/renderer.js';
 import { QRCheck } from '../validation/qr-checker.js';
 import { normalizeImage, readFile } from '../image/image-loader.js';
-import { hasReadableColors } from '../utils/colors.js';
 import { saveFile } from '../utils/files.js';
 import { createSvg } from '../export/svg.js';
 import { rasterizeQr } from '../export/raster.js';
@@ -17,6 +23,11 @@ import { createToast } from '../ui/toast.js';
 
 export function createStudio() {
   const pixelSizes = PIXEL_SIZES;
+  let silhouette = null;
+  const content = createContentController(() => {
+    clearTimeout(inputTimer);
+    render();
+  });
   const showToast = createToast();
   const { shapeIcon, prepareCatalog, updateStyleControls } = createStyleGallery();
   let qr = null,
@@ -46,9 +57,11 @@ export function createStudio() {
     return !!logo && $('logo-enabled').checked;
   }
   function validColors() {
-    return hasReadableColors($('foreground').value, $('eye-color').value, $('background').value);
+    return readableDesign(renderOptions());
   }
   function dimension() {
+    const print = readAdvancedOptions().print;
+    if (print.enabled) return Math.round((print.width / 25.4) * print.dpi);
     return outputDimension(
       qr,
       Number($('margin').value),
@@ -56,9 +69,17 @@ export function createStudio() {
     );
   }
   function logoGeometry() {
+    if (hasLogo() && qr && $('image-mode').value !== 'center')
+      return artGeometry(qr, Number($('margin').value), logo, {
+        zoom: Number($('image-zoom').value),
+        panX: Number($('image-x').value),
+        panY: Number($('image-y').value),
+        fit: $('image-fit').value,
+      });
     return hasLogo() && qr
       ? QRImage.geometry(qr, Number($('margin').value), logo, {
-          size: Number($('logo-size').value),
+          sizeModules: Number($('logo-size').value),
+          snapPan: true,
           zoom: Number($('image-zoom').value),
           x: Number($('image-x').value),
           y: Number($('image-y').value),
@@ -72,6 +93,7 @@ export function createStudio() {
   }
   function renderOptions() {
     return {
+      ...readAdvancedOptions(silhouette),
       margin: Number($('margin').value),
       foreground: $('foreground').value,
       background: $('background').value,
@@ -83,7 +105,8 @@ export function createStudio() {
       image: hasLogo() ? logo : null,
       frame: frameStyle,
       blend: blendStyle,
-      imageSize: Number($('logo-size').value),
+      imageModules: Number($('logo-size').value),
+      imageSize: (Number($('logo-size').value) / (qr?.size || 29)) * 100,
       zoom: Number($('image-zoom').value),
       panX: Number($('image-x').value),
       panY: Number($('image-y').value),
@@ -97,6 +120,7 @@ export function createStudio() {
   function designKey() {
     return JSON.stringify([
       encodedUrl,
+      readAdvancedOptions(silhouette),
       moduleStyle,
       eyeStyle,
       centerStyle,
@@ -182,7 +206,7 @@ export function createStudio() {
         : count + ' de 4 lecturas correctas · ajusta el diseño';
       if (passed) {
         verifiedKey = key;
-        $('check-destination').textContent = 'Liga leída: ' + expected;
+        $('check-destination').textContent = 'Contenido leído: ' + expected;
       } else {
         const advice = [];
         if (!validColors()) advice.push('Usa módulos y esquinas más oscuros sobre un fondo claro.');
@@ -223,7 +247,7 @@ export function createStudio() {
     $('margin-value').textContent =
       $('margin').value + (Number($('margin').value) === 1 ? ' módulo' : ' módulos');
     $('resolution-value').textContent = pixelSizes[Number($('resolution').value)] + ' px';
-    $('logo-size-value').textContent = $('logo-size').value + '%';
+    $('logo-size-value').textContent = $('logo-size').value + ' módulos';
     ['image-zoom', 'image-x', 'image-y'].forEach(
       (id) => ($(id + '-value').textContent = $(id).value + (id === 'image-zoom' ? '%' : '')),
     );
@@ -248,13 +272,25 @@ export function createStudio() {
     const central = hasLogo();
     if (central) setEcc('H');
     document.querySelector('input[name="ecc"][value="M"]').disabled = central;
-    $('ecc-note').textContent = central ? 'Alta activada para la imagen central.' : '';
+    $('ecc-note').textContent = central ? 'Alta activada para la imagen.' : '';
     $('image-settings').classList.toggle('visible', !!logo);
     $('image-name').textContent = logo ? logo.name : '';
+    const centralMode = $('image-mode').value === 'center';
+    $('logo-size').closest('.control-row').hidden = !centralMode;
+    document.querySelector('[data-frame]').closest('.control-row').hidden = !centralMode;
+    document.querySelector('[data-blend]').closest('.control-row').hidden = !centralMode;
+    const options = readAdvancedOptions(),
+      view = qr
+        ? svgMarkup()
+            .match(/viewBox="([^"]+)"/)[1]
+            .split(' ')
+            .map(Number)
+        : null;
+    const widthMm = options.print.enabled ? options.print.width : Number($('pdf-size').value);
     const notes = {
       png: '',
       svg: 'Vectorial',
-      pdf: Number($('pdf-size').value) + ' × ' + $('pdf-size').value + ' mm · vectorial',
+      pdf: view ? `${widthMm} × ${((widthMm * view[3]) / view[2]).toFixed(1)} mm · vectorial` : '',
       jpg: '',
       webp: '',
     };
@@ -269,12 +305,42 @@ export function createStudio() {
   }
   function render() {
     try {
-      encodedUrl = normalizeLink($('url').value);
+      encodedUrl = content.payload();
       if (hasLogo()) setEcc('H');
-      qr = encodeLink(encodedUrl, { ecc: eccName(), hasImage: hasLogo() });
-      $('qr-preview').innerHTML = svgMarkup();
+      qr = encodePayload(encodedUrl, {
+        ecc: eccName(),
+        hasImage: hasLogo(),
+        imageModules: $('image-mode').value === 'center' ? Number($('logo-size').value) : 0,
+      });
+      $('logo-size').max = String(
+        hasLogo() && $('image-mode').value === 'center'
+          ? Math.min(14, imageRoom(qr))
+          : Math.floor(qr.size * 0.3),
+      );
+      if (Number($('logo-size').value) > Number($('logo-size').max))
+        $('logo-size').value = $('logo-size').max;
+      const imageGeometry = logoGeometry();
+      if (imageGeometry) {
+        for (const [axis, travel] of [
+          ['x', imageGeometry.travelX],
+          ['y', imageGeometry.travelY],
+        ]) {
+          const slider = $('image-' + axis),
+            limit = Math.max(1, Math.floor(travel));
+          const value = QRImage.clamp(Number(slider.value), -limit, limit);
+          slider.min = String(-limit);
+          slider.max = String(limit);
+          slider.value = String(value);
+        }
+      }
+      $('qr-preview').innerHTML = namespaceSvg(svgMarkup(), 'preview');
       $('destination').textContent = encodedUrl;
-      $('stat-size').textContent = dimension() + ' × ' + dimension() + ' px';
+      const view = svgMarkup()
+        .match(/viewBox="([^"]+)"/)[1]
+        .split(' ')
+        .map(Number);
+      $('stat-size').textContent =
+        dimension() + ' × ' + Math.round((dimension() * view[3]) / view[2]) + ' px';
       $('stat-grid').textContent = qr.size + ' × ' + qr.size;
       $('stat-ecc').textContent = eccName();
       const valid = validColors();
@@ -285,7 +351,7 @@ export function createStudio() {
     } catch (e) {
       qr = null;
       encodedUrl = '';
-      $('qr-preview').innerHTML = '<div class="empty">Pega una liga válida</div>';
+      $('qr-preview').innerHTML = '<div class="empty">Completa el contenido</div>';
       $('destination').textContent = '—';
       $('stat-size').textContent = '— px';
       $('stat-grid').textContent = '— módulos';
@@ -306,12 +372,17 @@ export function createStudio() {
     }
     const g = logoGeometry();
     if (g)
-      $('image-editor').innerHTML = svgMarkup()
+      $('image-editor').innerHTML = renderQrSvg(qr, {
+        ...renderOptions(),
+        bare: true,
+        imageMode: $('image-mode').value,
+      })
         .replace(/viewBox="[^"]+"/, `viewBox="${g.start} ${g.start} ${g.side} ${g.side}"`)
         .replaceAll('image-window', 'editor-window')
         .replaceAll('image-safe', 'editor-safe');
     else $('image-editor').innerHTML = '';
     updateControls();
+    document.dispatchEvent(new Event('studio:render'));
   }
   async function setLogo(source, name, crop) {
     const token = ++logoRevision;
@@ -326,6 +397,10 @@ export function createStudio() {
       setEcc('H');
       clearTimeout(inputTimer);
       render();
+      if (qr && $('image-mode').value === 'center') {
+        $('logo-size').value = String(Math.min(14, imageRoom(qr), Math.round(qr.size * 0.24)));
+        render();
+      }
     } catch (e) {
       if (token === logoRevision) showToast(e.message);
     } finally {
@@ -336,10 +411,27 @@ export function createStudio() {
     }
   }
   function rasterBlob(mime) {
-    return rasterizeQr(svgMarkup(), dimension(), mime);
+    return rasterizeQr(svgMarkup(), dimension(), mime).then((blob) =>
+      withDpi(blob, renderOptions().print.enabled ? renderOptions().print.dpi : null),
+    );
   }
   function makePdf() {
-    return createPdf(qr, renderOptions(), Number($('pdf-size').value));
+    const options = renderOptions();
+    if (
+      options.border.enabled ||
+      options.silhouette ||
+      options.gradient.mode !== 'none' ||
+      options.image?.svg ||
+      options.imageMode !== 'center' ||
+      options.print.enabled
+    )
+      return import('../export/studio-pdf.js').then((m) =>
+        m.createStudioPdf(
+          svgMarkup(),
+          options.print.enabled ? options.print.width : Number($('pdf-size').value),
+        ),
+      );
+    return createPdf(qr, options, Number($('pdf-size').value));
   }
   async function exportQr() {
     clearTimeout(inputTimer);
@@ -362,7 +454,12 @@ export function createStudio() {
     inputs.forEach((e) => (e.disabled = true));
     try {
       let blob;
-      if (format === 'svg') blob = createSvg(svgMarkup());
+      if (format === 'svg')
+        blob = createSvg(
+          renderOptions().print.enabled
+            ? physicalSvg(svgMarkup(), renderOptions().print.width)
+            : svgMarkup(),
+        );
       else if (format === 'pdf') blob = await makePdf();
       else
         blob = await rasterBlob(
@@ -500,8 +597,8 @@ export function createStudio() {
   $('logo-file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      showToast('Usa una imagen PNG, JPG o WebP.');
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      showToast('Usa una imagen PNG, JPG, WebP o SVG.');
       e.target.value = '';
       return;
     }
@@ -540,6 +637,8 @@ export function createStudio() {
   });
   $('reset').addEventListener('click', () => {
     clearTimeout(inputTimer);
+    resetAdvanced();
+    silhouette = null;
     logoRevision++;
     logo = null;
     uploading = false;
@@ -559,5 +658,73 @@ export function createStudio() {
   $('check-qr').addEventListener('click', checkQr);
   render();
 
-  return { render, checkQr, exportQr };
+  function getState() {
+    return {
+      version: 2,
+      type: content.type,
+      fields: captureFields(),
+      styles: {
+        module: moduleStyle,
+        eye: eyeStyle,
+        center: centerStyle,
+        frame: frameStyle,
+        blend: blendStyle,
+        format: exportFormat,
+      },
+      ecc: eccName(),
+      logo,
+      silhouette,
+    };
+  }
+  function applyState(state) {
+    if (exporting || uploading) throw new Error('Espera a que termine la operación actual.');
+    if (!state || state.version !== 2)
+      throw new Error('El proyecto no es compatible con esta versión.');
+    const nextLogo = validImage(state.logo),
+      nextSilhouette = validSilhouette(state.silhouette);
+    clearTimeout(inputTimer);
+    restoreFields(state.fields);
+    logo = nextLogo;
+    silhouette = nextSilhouette;
+    logoRevision++;
+    const styles = state.styles || {};
+    moduleStyle = QRStyles.modules.some((m) => m.id === styles.module) ? styles.module : 'square';
+    eyeStyle = QRStyles.eyes.some((m) => m.id === styles.eye) ? styles.eye : 'square';
+    centerStyle = QRStyles.compatibleCenters(eyeStyle).includes(styles.center)
+      ? styles.center
+      : QRStyles.compatibleCenters(eyeStyle)[0];
+    frameStyle = ['square', 'rounded', 'circle'].includes(styles.frame) ? styles.frame : 'square';
+    blendStyle = ['integrated', 'weave'].includes(styles.blend) ? styles.blend : 'integrated';
+    exportFormat = ['png', 'svg', 'pdf', 'jpg', 'webp'].includes(styles.format)
+      ? styles.format
+      : 'png';
+    setEcc(state.ecc === 'H' ? 'H' : 'M');
+    content.select(state.type, false);
+    render();
+  }
+  return {
+    render,
+    checkQr,
+    exportQr,
+    getState,
+    applyState,
+    choose,
+    setLogo,
+    showToast,
+    get qr() {
+      return qr;
+    },
+    get payload() {
+      return encodedUrl;
+    },
+    get busy() {
+      return exporting || uploading || checking;
+    },
+    getOptions: renderOptions,
+    getSvg: () => (qr ? svgMarkup() : ''),
+    setSilhouette(value) {
+      silhouette = value;
+      render();
+    },
+  };
 }

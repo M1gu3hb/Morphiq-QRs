@@ -7,10 +7,23 @@ export const QRImage = (() => {
     q,
     margin,
     image,
-    { size = 24, zoom = 100, x = 0, y = 0, fit = 'auto', frame = 'square' } = {},
+    {
+      size = 24,
+      sizeModules,
+      zoom = 100,
+      x = 0,
+      y = 0,
+      fit = 'auto',
+      frame = 'square',
+      snapPan = false,
+    } = {},
   ) {
-    const side = (q.size * clamp(size, 8, 30)) / 100,
-      start = margin + (q.size - side) / 2;
+    const side = clamp(
+        Math.round(sizeModules ?? (q.size * clamp(size, 8, 30)) / 100),
+        2,
+        Math.floor(q.size * 0.3),
+      ),
+      start = margin + Math.floor((q.size - side) / 2);
     const mode = fit === 'auto' ? (image.transparent || image.logoLike ? 'contain' : 'cover') : fit;
     const scale =
       ((mode === 'cover'
@@ -26,8 +39,12 @@ export const QRImage = (() => {
     return {
       side,
       start,
-      x: start + (side - w) / 2 + (clamp(x, -100, 100) / 100) * travelX,
-      y: start + (side - h) / 2 + (clamp(y, -100, 100) / 100) * travelY,
+      x: snapPan
+        ? Math.round(start + (side - w) / 2 + x)
+        : start + (side - w) / 2 + (clamp(x, -100, 100) / 100) * travelX,
+      y: snapPan
+        ? Math.round(start + (side - h) / 2 + y)
+        : start + (side - h) / 2 + (clamp(y, -100, 100) / 100) * travelY,
       w,
       h,
       travelX,
@@ -61,7 +78,13 @@ export const QRImage = (() => {
         else if (mode === 'weave')
           cores += `<rect x="${x + margin + 0.14}" y="${y + margin + 0.14}" width=".72" height=".72" fill="${q.getModule(x, y) ? foreground : background}"/>`;
       }
-    return `<defs><clipPath id="image-window"><rect x="${g.start}" y="${g.start}" width="${g.side}" height="${g.side}" rx="${g.r}"/></clipPath><mask id="image-safe" maskUnits="userSpaceOnUse" x="0" y="0" width="${n}" height="${n}"><rect width="${n}" height="${n}" fill="#fff"/>${protectedRects}</mask></defs><g clip-path="url(#image-window)" mask="url(#image-safe)"><rect x="${g.start}" y="${g.start}" width="${g.side}" height="${g.side}" fill="${background}"/><image x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" href="${image.data}" preserveAspectRatio="none"/>${cores}</g>`;
+    const picture = image.svg
+      ? image.svg
+          .replace('<svg ', `<svg x="${g.x}" y="${g.y}" `)
+          .replace(/width="[^"]+"/, `width="${g.w}"`)
+          .replace(/height="[^"]+"/, `height="${g.h}"`)
+      : `<image x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" href="${image.data}" preserveAspectRatio="none"/>`;
+    return `<defs><clipPath id="image-window"><rect x="${g.start}" y="${g.start}" width="${g.side}" height="${g.side}" rx="${g.r}"/></clipPath><mask id="image-safe" maskUnits="userSpaceOnUse" x="0" y="0" width="${n}" height="${n}"><rect width="${n}" height="${n}" fill="#fff"/>${protectedRects}</mask></defs><g clip-path="url(#image-window)" mask="url(#image-safe)"><rect x="${g.start}" y="${g.start}" width="${g.side}" height="${g.side}" fill="${background}"/>${picture}${cores}</g>`;
   }
   function trimBounds(data, w, h) {
     let left = w,

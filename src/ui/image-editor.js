@@ -23,16 +23,16 @@ export function bindImageEditor({ getGeometry, canEdit, onChange }) {
     e.preventDefault();
     $('image-x').value = Math.round(
       QRImage.clamp(
-        imageDrag.panX + (((e.clientX - imageDrag.x) * imageDrag.unit) / imageDrag.g.travelX) * 100,
-        -100,
-        100,
+        imageDrag.panX + (e.clientX - imageDrag.x) * imageDrag.unit,
+        Number($('image-x').min),
+        Number($('image-x').max),
       ),
     );
     $('image-y').value = Math.round(
       QRImage.clamp(
-        imageDrag.panY + (((e.clientY - imageDrag.y) * imageDrag.unit) / imageDrag.g.travelY) * 100,
-        -100,
-        100,
+        imageDrag.panY + (e.clientY - imageDrag.y) * imageDrag.unit,
+        Number($('image-y').min),
+        Number($('image-y').max),
       ),
     );
     onChange();
@@ -44,18 +44,18 @@ export function bindImageEditor({ getGeometry, canEdit, onChange }) {
   );
   $('image-editor').addEventListener('keydown', (e) => {
     if (!canEdit()) return;
-    const delta = e.shiftKey ? 10 : 2;
+    const delta = e.shiftKey ? 5 : 1;
     if (['ArrowLeft', 'ArrowRight'].includes(e.key))
       $('image-x').value = QRImage.clamp(
         Number($('image-x').value) + (e.key === 'ArrowLeft' ? -delta : delta),
-        -100,
-        100,
+        Number($('image-x').min),
+        Number($('image-x').max),
       );
     else if (['ArrowUp', 'ArrowDown'].includes(e.key))
       $('image-y').value = QRImage.clamp(
         Number($('image-y').value) + (e.key === 'ArrowUp' ? -delta : delta),
-        -100,
-        100,
+        Number($('image-y').min),
+        Number($('image-y').max),
       );
     else return;
     e.preventDefault();

@@ -1,3 +1,4 @@
+import { sanitizeSvg, svgDataUrl } from './vector.js';
 import { QRImage } from './framing.js';
 export function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -17,6 +18,14 @@ export function readFile(file) {
 }
 
 export async function normalizeImage(source, name, crop) {
+  if (source.startsWith('data:image/svg+xml')) {
+    const encoded = source.split(',')[1],
+      raw = source.includes(';base64,')
+        ? decodeURIComponent(escape(atob(encoded)))
+        : decodeURIComponent(encoded);
+    const vector = sanitizeSvg(raw);
+    return { ...vector, data: svgDataUrl(vector.svg), name };
+  }
   const img = await loadImage(source);
   const area = crop || { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
   const scale = Math.min(1, 1024 / Math.max(area.w, area.h));

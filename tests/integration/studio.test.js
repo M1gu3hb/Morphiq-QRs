@@ -41,8 +41,8 @@ test('controller preserves defaults, colors, image framing, validation and five 
   initColorPicker();
   assert.equal(el('margin').value, DEFAULT_FIELDS.margin);
   assert.equal(el('foreground').value, DEFAULT_FIELDS.foreground);
-  assert.equal(document.querySelectorAll('[data-preset]').length, 64);
-  assert.equal(document.querySelectorAll('[data-module]').length, 41);
+  assert.equal(document.querySelectorAll('[data-preset]').length, 32);
+  assert.equal(document.querySelectorAll('[data-module]').length, 18);
   assert.equal(decodePixels(await svgPixels(el('qr-preview').innerHTML)), destination);
 
   // Color updates flow from the custom dialog to the actual QR renderer.

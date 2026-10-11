@@ -1,6 +1,6 @@
 {
   "name": "morphiq-qrs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Estudio QR de Morphiq, con personalización y verificación local en el navegador.",
@@ -10,19 +10,25 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-pwa.js",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/unit/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",
     "check": "npm run test && npm run test:integration && npm run build",
-    "format": "prettier --write src tests docs index.html *.json *.js README.md .github",
-    "format:check": "prettier --check src tests docs index.html *.json *.js README.md .github"
+    "format": "prettier --write src tests docs scripts index.html *.json *.js README.md .github",
+    "format:check": "prettier --check src tests docs scripts index.html *.json *.js README.md .github",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "jsqr": "1.4.0"
+    "fflate": "0.8.3",
+    "jspdf": "4.2.1",
+    "jsqr": "1.4.0",
+    "svg2pdf.js": "2.8.1"
   },
   "devDependencies": {
     "@napi-rs/canvas": "0.1.100",
+    "@playwright/test": "1.64.0",
+    "fake-indexeddb": "6.2.4",
     "linkedom": "0.18.12",
     "prettier": "3.9.10",
     "sharp": "0.34.5",

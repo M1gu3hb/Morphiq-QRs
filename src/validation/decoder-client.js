@@ -33,11 +33,11 @@ function getWorker() {
   }
 }
 
-export async function decodeQrImage(image) {
+export async function decodeQrImage(image, { details = false } = {}) {
   const activeWorker = getWorker();
   if (!activeWorker) {
-    const { decodePixels } = await import('./decoder.js');
-    return decodePixels(image);
+    const { decodePixels, decodeDetails } = await import('./decoder.js');
+    return details ? decodeDetails(image) : decodePixels(image);
   }
   return new Promise((resolve, reject) => {
     const id = ++sequence;
@@ -50,6 +50,8 @@ export async function decodeQrImage(image) {
       image.data.byteOffset,
       image.data.byteOffset + image.data.byteLength,
     );
-    activeWorker.postMessage({ id, pixels, width: image.width, height: image.height }, [pixels]);
+    activeWorker.postMessage({ id, pixels, width: image.width, height: image.height, details }, [
+      pixels,
+    ]);
   });
 }

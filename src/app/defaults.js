@@ -5,7 +5,7 @@ export const DEFAULT_FIELDS = {
   background: '#ffffff',
   'logo-background': '#ffffff',
   margin: '1',
-  'logo-size': '24',
+  'logo-size': '7',
   resolution: '1',
   'pdf-size': '50',
   filename: 'morphiq-qr',

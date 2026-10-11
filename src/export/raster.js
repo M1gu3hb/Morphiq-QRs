@@ -5,7 +5,8 @@ export async function rasterizeQr(svgText, size, mime) {
   try {
     const img = await loadImage(url),
       c = document.createElement('canvas');
-    c.width = c.height = size;
+    c.width = size;
+    c.height = Math.round((size * img.naturalHeight) / img.naturalWidth);
     const ctx = c.getContext('2d');
     if (!ctx) throw new Error('Usa SVG o PDF en este navegador.');
     ctx.imageSmoothingEnabled = false;

@@ -32,8 +32,8 @@ test('activating an image forces high correction; dimensions use complete module
 });
 
 test('the catalog has unique identifiers and compatible preset combinations', () => {
-  assert.equal(QRStyles.presets.length, 64);
-  assert.equal(QRStyles.modules.length, 41);
+  assert.equal(QRStyles.presets.length, 32);
+  assert.equal(QRStyles.modules.length, 18);
   for (const items of [QRStyles.presets, QRStyles.modules, QRStyles.eyes, QRStyles.centers]) {
     assert.equal(new Set(items.map((item) => item.id)).size, items.length);
   }
@@ -47,14 +47,14 @@ test('zoom and pan change the image while leaving its QR window fixed', () => {
   const qr = encodeLink('https://morphiq.com.mx', { hasImage: true });
   const image = { width: 600, height: 200, transparent: true };
   const initial = QRImage.geometry(qr, 1, image);
-  const moved = QRImage.geometry(qr, 1, image, { zoom: 200, x: 40, y: -30 });
+  const moved = QRImage.geometry(qr, 1, image, { zoom: 200, x: 30, y: -30 });
   assert.equal(initial.side, moved.side);
   assert.equal(initial.start, moved.start);
   assert.equal(moved.w, initial.w * 2);
   assert.notEqual(moved.x, initial.x);
   assert.equal(initial.mode, 'contain');
   assert.equal(QRImage.geometry(qr, 1, { ...image, transparent: false }).mode, 'cover');
-  assert.equal(QRImage.geometry(qr, 1, image, { size: 90 }).side, qr.size * 0.3);
+  assert.equal(QRImage.geometry(qr, 1, image, { size: 90 }).side, Math.floor(qr.size * 0.3));
 });
 
 test('contrast checks both data modules and finder colors', () => {

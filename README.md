@@ -1,6 +1,6 @@
 # Morphiq QRs
 
-Estudio de códigos QR de **Morphiq**, desarrollado por **M1gu3hb**. Genera códigos estáticos que contienen directamente la liga elegida. La generación, la edición de imágenes, la comprobación y las exportaciones se ejecutan en el navegador.
+Estudio de códigos QR de **Morphiq**, desarrollado por **M1gu3hb**. Crea, personaliza, comprueba y lee códigos estáticos directamente en el navegador.
 
 **Sitio:** https://morphiqqr.vercel.app/  
 **Marca:** https://morphiq.com.mx  
@@ -8,62 +8,83 @@ Estudio de códigos QR de **Morphiq**, desarrollado por **M1gu3hb**. Genera cód
 
 ## Desarrollo
 
-Requiere Node.js 22.12 o posterior y npm. Node.js 24 es la versión utilizada para validar el proyecto.
+Requiere Node.js 22.12 o posterior y npm. Node.js 24 se utiliza en las comprobaciones del proyecto.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Vite muestra la dirección del servidor local. Para obtener y revisar la versión de producción:
+Para compilar y revisar la versión de producción:
 
 ```sh
 npm run build
 npm run preview
 ```
 
-El resultado está en `dist/`. No necesita un servidor de aplicación ni una base de datos. `vercel.json` contiene la configuración del proyecto para Vercel; no es necesario desplegar de nuevo para trabajar con este repositorio.
+Vite genera `dist/`; el script posterior crea el service worker con un hash del contenido compilado. No se requieren variables de entorno, un backend ni cuentas de usuarios. `vercel.json` permite desplegar el proyecto en Vercel.
 
 ## Funciones
 
-- Generación automática al pegar una liga; negro sobre blanco y margen de un módulo por defecto.
-- 64 estilos predefinidos, 41 formas de módulos, 9 formas de esquinas y 7 centros, con restricciones de compatibilidad.
-- Selector de color propio con área de saturación/brillo, tono, HEX y RGB.
-- Imagen central con encuadre automático, recorte, zoom, posición X/Y, arrastre, integración y trama QR.
-- Símbolo Morphiq recortado del recurso original y corrección de errores alta al activar una imagen.
-- Descargas PNG, SVG, PDF vectorial, JPG y WebP.
-- Comprobación mediante lectura real de cuatro variantes: original, reducción, rotación y compresión/desenfoque. La descarga requiere superar las cuatro lecturas y el control de contraste.
-- Fondo ASCII animado, controles separados y metadatos para compartir el enlace.
+- **13 contenidos:** liga, WhatsApp con mensaje, Wi-Fi, contacto vCard, teléfono, correo, evento de calendario, Spotify, red social, aplicación, ubicación, texto y SMS.
+- **Diseño:** 32 combinaciones, 18 módulos principalmente conectados, 9 esquinas y 7 centros compatibles. Las muestras codifican `https://morphiq.com.mx`.
+- **Colores:** selector propio con saturación, brillo, tono, HEX y RGB; 8 paletas; tinta sólida, degradado lineal/radial y dúo tono con dirección editable.
+- **Imagen:** PNG/JPG/WebP y SVG sanitizado, recorte automático, área por módulos completos, zoom independiente, desplazamiento X/Y por módulos, arrastre, base de color y eliminación de fondo uniforme con restauración.
+- **Integración:** imagen central, trama QR, textura dentro de módulos y fotografía de fondo. Símbolo Morphiq y 9 símbolos populares listos para usar.
+- **Marcos:** 14 opciones con muestras, texto y colores editables, además de mezcla independiente de formas y paletas.
+- **Siluetas PNG:** contorno con trama decorativa y un QR completo dentro de una zona interior opaca. Conserva la matriz legible; no deforma ni redistribuye los datos del QR.
+- **Proyectos:** autoguardado y hasta 100 proyectos locales en IndexedDB; exportación/importación JSON para respaldarlos o transferirlos.
+- **Estudio:** comparación A/B, mezcla general o por elemento y reparación asistida que presenta una variante comprobada antes de aplicarla.
+- **Impresión:** ancho físico de 15–200 mm, 300/600 dpi, medidas proporcionales, densidad PNG/JPG, SVG con medidas en milímetros, PDF y etiquetas A4.
+- **Lotes:** hasta 100 QRs por ligas o CSV; salida ZIP en PNG/SVG/PDF, con cuatro lecturas por elemento y un reporte de archivos válidos y omitidos.
+- **Descargas:** PNG, SVG, PDF, JPG y WebP. Los módulos y marcos permanecen vectoriales en SVG/PDF; las fotografías se conservan como imágenes integradas.
+- **Lector:** cámara, cambio de cámara, linterna cuando el dispositivo la permite, lectura de imágenes, contorno luminoso al detectar, copia y acciones explícitas para abrir enlaces o guardar contactos/eventos. No abre enlaces automáticamente.
+- **PWA:** mismo nombre e icono azul. En navegador abre el generador; instalada abre el lector. Tras la primera carga completa, generación, lectura de imágenes y exportadores funcionan sin conexión.
+- Fondo ASCII animado, tarjetas independientes, expandidores fluidos, interfaz adaptable y metadatos de imagen para compartir.
 
-La comprobación no garantiza la lectura en todos los dispositivos o condiciones de impresión. Los diseños extremos, las imágenes grandes y los márgenes pequeños pueden fallar; el comprobador propone ajustes. Para impresión, un margen de cuatro módulos ofrece una zona libre más adecuada, aunque el valor solicitado por defecto es uno.
+Las herramientas de estudio son opcionales. El inicio conserva negro sobre blanco y margen de un módulo. Activar una imagen fuerza resistencia H. Activar impresión ajusta el margen a cuatro módulos si era menor.
+
+## Lectura y datos locales
+
+La descarga individual exige cuatro lecturas reales: original, tamaño reducido, rotación y compresión/desenfoque. Se comparan con el contenido completo y se verifica el contraste. Los lotes omiten los diseños que no pasan; la reparación nunca se aplica automáticamente.
+
+Estas pruebas digitales no garantizan lectura en todos los teléfonos o condiciones físicas. Una silueta estrecha, una imagen grande o un diseño extremo pueden necesitar ajustes. Los patrones de posición, sincronización, alineación y metadatos del QR se preservan.
+
+Los QRs contienen directamente el contenido elegido: no hay redirección de Morphiq, caducidad, seguimiento ni cobros. Las etiquetas de campaña añaden parámetros UTM a la liga original; no cuentan visitas ni implican un QR dinámico. El destino necesita conexión cuando es un sitio web.
+
+Proyectos, imágenes y contraseñas Wi-Fi permanecen en el navegador y no se envían a una API. El almacenamiento local no sincroniza dispositivos y puede borrarse al limpiar los datos del navegador; exporta los proyectos que quieras conservar. La cámara necesita HTTPS o localhost y permiso del usuario.
 
 ## Estructura
 
-| Ruta              | Responsabilidad                                           |
-| ----------------- | --------------------------------------------------------- |
-| `index.html`      | Interfaz, accesibilidad y metadatos sociales              |
-| `src/app/`        | Inicio, valores por defecto y coordinación de la interfaz |
-| `src/qr/`         | Codificación, catálogo y geometría visual compartida      |
-| `src/image/`      | Carga, normalización, encuadre e integración de imágenes  |
-| `src/validation/` | Pruebas de lectura y decodificador en un worker           |
-| `src/export/`     | Exportadores SVG, imágenes rasterizadas y PDF             |
-| `src/ui/`         | Galería, selector de colores, editor y notificaciones     |
-| `src/styles/`     | Estilos separados por componente                          |
-| `src/utils/`      | Contraste, nombres y descarga de archivos                 |
-| `src/vendor/`     | Codificador QR vendorizado con su licencia original       |
-| `public/`         | Recursos de marca, metadatos y motor del fondo ASCII      |
-| `tests/`          | Pruebas unitarias y de integración con lectura real       |
-| `docs/`           | Arquitectura, mantenimiento y créditos de terceros        |
+| Ruta                       | Responsabilidad                                           |
+| -------------------------- | --------------------------------------------------------- |
+| `src/app/`                 | Estado del generador, valores iniciales y coordinación    |
+| `src/content/`             | Formularios y codificación de contenidos directos         |
+| `src/qr/`                  | Matriz, catálogo, trazados y efectos de tinta             |
+| `src/frames/`              | Marcos vectoriales y composición de textos                |
+| `src/image/`               | Normalización, vectores, encuadre, textura y siluetas     |
+| `src/validation/`          | Comprobaciones y decodificador en un worker               |
+| `src/export/`              | SVG, raster, metadatos de impresión y PDF                 |
+| `src/projects/`            | Estado validado, IndexedDB y respaldos                    |
+| `src/scanner/`             | Cámara, detección y acciones del contenido leído          |
+| `src/advanced/`            | Paletas, mezcla, comparación, reparación y lotes          |
+| `src/pwa/`, `scripts/`     | Instalación y compilación del service worker              |
+| `src/ui/`, `src/styles/`   | Controles, galerías, animación y estilos                  |
+| `src/vendor/`, `licenses/` | Codificador y avisos de terceros                          |
+| `public/`                  | Marca, iconos, manifiesto, metadatos y motor ASCII        |
+| `tests/`, `docs/`          | Pruebas unitarias, integración, navegador y mantenimiento |
 
 ## Comprobaciones
 
 ```sh
 npm run check
 npm run format:check
+npx playwright install chromium
+npm run test:e2e
 ```
 
-`check` ejecuta las pruebas unitarias, las pruebas de integración y la compilación. Las pruebas de integración usan Canvas, Sharp, jsQR y una representación del DOM; comprueban la salida real y las interacciones principales. No sustituyen una revisión visual en un navegador y en teléfonos.
+`check` ejecuta pruebas unitarias, integración y compilación. Las pruebas de navegador comprueban formularios, autoguardado, edición por módulos, reparación sugerida, PDF legible, densidad de impresión, lotes y PWA/lector sin conexión. Para esas pruebas se requiere Poppler (`pdftoppm`) en el sistema. Un Chromium ya instalado puede indicarse mediante `MORPHIQ_BROWSER_EXECUTABLE`.
 
-GitHub Actions ejecuta las mismas comprobaciones en cada push y pull request de `main`.
+GitHub Actions ejecuta las comprobaciones en cada push y pull request de `main`.
 
 Más información: [arquitectura](docs/architecture.md), [mantenimiento](docs/development.md) y [recursos de terceros](docs/third-party.md).

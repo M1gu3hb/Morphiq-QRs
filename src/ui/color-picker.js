@@ -104,7 +104,14 @@ export function initColorPicker() {
     if (!panel.hidden) close();
     opener = button;
     target = button.dataset.picker;
-    el('picker-title').textContent = names[target];
+    el('picker-title').textContent =
+      names[target] ||
+      {
+        'gradient-color': 'Segundo color',
+        'border-color': 'Color del marco',
+        'border-text-color': 'Texto del marco',
+      }[target] ||
+      'Color';
     previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     panel.hidden = false;

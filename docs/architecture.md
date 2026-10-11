@@ -1,31 +1,51 @@
 # Arquitectura
 
-La aplicación usa JavaScript con módulos ES y Vite. Los módulos de generación y geometría no dependen del DOM. `createStudio()` mantiene el estado de una instancia y conecta los controles con esos módulos; no expone estado global.
+La aplicación usa JavaScript con módulos ES y Vite. La matriz QR, la geometría y la construcción de contenidos están separadas del DOM. `createStudio()` coordina una instancia del generador sin exponer su estado globalmente. El lector tiene un controlador independiente.
 
-## Recorrido de un diseño
+## Contenido y representación
 
-1. `normalizeLink()` acepta HTTP/HTTPS y agrega HTTPS cuando se pega un dominio sin protocolo.
-2. `encodeLink()` genera la matriz QR. Una imagen activa fuerza corrección H y versión mínima 3.
-3. `renderQrSvg()` compone la geometría, los colores y la imagen en un SVG. El preview, la lectura y las exportaciones rasterizadas utilizan ese resultado.
-4. `QRCheck.run()` decodifica cuatro variantes y compara cada lectura con la liga completa. Cambiar el diseño invalida el resultado anterior.
-5. El exportador elegido crea un Blob local y `saveFile()` inicia su descarga. El PDF mantiene los módulos como vectores e incorpora una imagen de la composición central cuando existe.
+1. `contentPayload()` construye la carga completa según el formulario: HTTP/HTTPS, Wi-Fi, vCard, calendario, teléfono, correo o texto. `withCampaign()` añade UTM directamente a la liga original.
+2. `encodePayload()` genera la matriz; una imagen activa obliga a corrección H y versión mínima 3.
+3. `renderQrSvg()` compone módulos, esquinas, tinta, imagen, silueta y marco. Vista previa, comprobador, descargas rasterizadas y PDF avanzado comparten esta composición.
+4. `QRCheck.run()` decodifica cuatro variantes y compara el resultado exacto con la carga prevista. Cambiar el diseño invalida la verificación previa.
+5. Cada exportador devuelve un Blob y `saveFile()` descarga el resultado localmente.
 
-La matriz codifica la dirección del usuario. No hay redirecciones intermedias, cuentas, caducidad, solicitudes a una API de generación ni backend. Las dependencias se empaquetan con la aplicación; las imágenes seleccionadas no se envían a un servicio.
+No existen endpoints de generación, cuentas, redirecciones propias ni backend. Las bibliotecas de ejecución se incluyen en la compilación. Los exportadores PDF y ZIP se cargan cuando se utilizan, pero el service worker también los prepara para uso sin conexión.
 
-## Geometría
+## Geometría e imágenes
 
-`src/qr/styles.js` reúne el catálogo, la compatibilidad entre esquinas y centros, y los trazados compartidos por SVG y PDF. Los patrones de sincronización, alineación y metadatos conservan módulos rectos. `src/image/framing.js` impide que la imagen cubra los patrones estructurales.
+El catálogo define las familias conectadas, presets y compatibilidades entre esquinas y centros. Los patrones estructurales mantienen sus módulos; una textura no sustituye los datos de sincronización o alineación.
 
-El tamaño del área central y el zoom son parámetros independientes. La imagen se recorta dentro de una ventana fija. El encuadre automático usa contain para imágenes transparentes o con un borde uniforme y cover para fotografías. La normalización recorta el relleno exterior sin eliminar colores del interior.
+La ventana central crece en unidades enteras: desde dos módulos hasta catorce, limitada también al 30% del ancho y al espacio libre de patrones. El codificador elige una versión que deje disponible el centro; con contenidos largos puede aumentar la densidad de la matriz. El tamaño de la ventana, el zoom de su contenido y la posición por módulos son independientes. La máscara mantiene visibles los patrones estructurales. No se reubican módulos codificados para rodear un logo.
 
-## Comprobador
+Las imágenes se normalizan localmente a un máximo de 1024 píxeles y se recorta su relleno exterior. Un SVG se analiza como XML inerte y se conserva como vector estático, excluyendo scripts, eventos, recursos externos y elementos ejecutables. Los identificadores se separan por vista para evitar conflictos entre degradados o recortes.
 
-`decoder-client.js` crea un worker solo al comprobar. El worker recibe un buffer de píxeles por transferencia y devuelve el texto leído por jsQR. Cuando Worker no está disponible, el cliente carga el mismo decodificador en el hilo principal. Cada solicitud tiene identificador y tiempo límite.
+Una silueta usa el canal alfa de un PNG. Un algoritmo encuentra el mayor cuadrado opaco interior; allí se coloca el QR intacto con su zona libre. El resto del contorno recibe una trama decorativa. Si la figura no ofrece una zona suficientemente amplia, se rechaza con una explicación. La decoración no se presenta como una redistribución válida de la matriz.
 
-El controlador usa una revisión del diseño y un token de comprobación para descartar resultados antiguos. Los controles se bloquean durante una exportación para que el archivo coincida con el diseño comprobado. Las cuatro pruebas son comprobaciones digitales; no representan todos los lectores ni todos los daños físicos posibles.
+## Validación y exportación
+
+El decodificador recibe buffers por transferencia en un worker con solicitudes identificadas y tiempo límite. Si Worker no está disponible, se utiliza el mismo lector en el hilo principal. Los resultados obsoletos se descartan mediante revisión y token.
+
+La descarga individual verifica contraste y cuatro lecturas. Un lote usa una instantánea del diseño, comprueba cada contenido y omite los fallos en el ZIP con un reporte JSON. Una reparación ensaya variantes progresivas y ofrece un botón para aplicar la primera legible; la comparación conserva una instantánea A y muestra el diseño actual B.
+
+El PDF sencillo comparte los trazados del catálogo. Los diseños avanzados usan jsPDF y svg2pdf.js para mantener módulos, marcos, degradados y logos SVG vectoriales. Una composición central con fotografía y máscara se incorpora como un parche rasterizado de esa área, sin aplanar todo el QR. SVG conserva el vector completo y sus imágenes integradas.
+
+En impresión, el ancho físico determina los píxeles según los dpi; el alto respeta la proporción del diseño completo. PNG/JPEG llevan densidad; SVG/PDF llevan medidas físicas. Las etiquetas A4 usan el mismo diseño y lo comprueban antes de colocarlo.
+
+## Guardado local
+
+IndexedDB conserva el borrador y los proyectos con imágenes incluidas. La escritura se confirma cuando finaliza la transacción. El autoguardado usa un breve debounce y las escrituras se serializan. Un proyecto JSON se valida antes de cargarlo: versión, campos conocidos, estilos compatibles, imágenes locales y contorno acotado.
+
+El borrador no es una cuenta ni una sincronización. Exportar JSON permite respaldar o mover el proyecto. Eliminar datos del sitio puede eliminarlo; el navegador determina las cuotas y disponibilidad del almacenamiento.
+
+## Lector y PWA
+
+La cámara se solicita al pulsar Activar cámara. Cada sesión tiene un token; cambiar vista, cerrar la página o pasar al fondo detiene las pistas. El lector dibuja las esquinas detectadas sobre una imagen con la misma proporción y muestra el contenido. Solo produce acciones de navegación para esquemas permitidos; no navega automáticamente.
+
+El manifiesto conserva el icono QR azul, nombre Morphiq QR y arranque en `/?app=1`. El navegador habitual muestra el generador; standalone muestra el lector. Los atajos permiten abrir cualquiera de los dos.
+
+El build calcula una versión por hash y genera `dist/sw.js`. El worker prepara recursos propios, incluidos chunks y decodificador, mantiene navegación disponible sin conexión y elimina solo cachés antiguas de Morphiq. Una actualización espera al usuario; antes de activarla se guarda el borrador. No se precargan imágenes ni contenidos de destinos externos.
 
 ## Recursos
 
-El motor GLYPHOS está aislado en `public/vendor/glyphos-field.js`. El logo, la imagen social y los fondos originales se conservan en `public/assets/`. Algunos fondos de versiones anteriores se mantienen como recursos del proyecto, aunque el fondo actual se genera animado.
-
-No se cambió el sitio de producción al organizar este repositorio. La configuración de Vercel permite compilar esta estructura en un despliegue futuro.
+GLYPHOS permanece aislado en `public/vendor/glyphos-field.js`; la marca y la imagen social están en `public/assets/`. Las imágenes de referencia inspiraron familias de geometría y marcos, sin copiar ilustraciones o marcas de agua. Los recursos propios conservan su atribución al propietario del proyecto.
