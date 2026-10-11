@@ -91,6 +91,8 @@ test('content forms, connected styles, complete-module image editing and mobile 
   await expect(page.locator('#margin')).toHaveValue('1');
   await expect(page.locator('#foreground')).toHaveValue('#000000');
   await expect(page.locator('#advanced-tools')).toBeHidden();
+  await expect(page.locator('#image-settings')).toBeHidden();
+  await expect(page.locator('[data-logo="whatsapp"] svg path')).toHaveAttribute('fill', '#25D366');
   await page.locator('[data-content="whatsapp"]').click();
   await page.locator('#content-whatsapp-phone').fill('525512345678');
   await page.locator('#content-whatsapp-message').fill('Hola, quiero información');
@@ -107,13 +109,19 @@ test('content forms, connected styles, complete-module image editing and mobile 
   await field(page, 'image-zoom', 180);
   await page.locator('#image-editor').focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('#image-x')).toHaveValue('1');
+  await expect(page.locator('#image-x')).toHaveValue('0.1');
+  await field(page, 'image-x', 0.25);
+  await field(page, 'image-y', -0.35);
+  await expect(page.locator('#image-x')).toHaveValue('0.25');
+  await expect(page.locator('#image-y')).toHaveValue('-0.35');
   await expect(rect).toHaveAttribute('width', '5');
   await expect(rect).toHaveAttribute('x', /^\d+$/);
   await check(page);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('mobile.png'), fullPage: true });
+  await page.locator('#logo-enabled').uncheck();
+  await expect(page.locator('#image-settings')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -130,6 +138,7 @@ test('autosave, named projects, comparison and repair suggestions preserve user 
   await page.locator('#project-save').click();
   await expect(page.locator('#projects-list')).toContainText('Cliente de prueba');
   await page.locator('#projects-close').click();
+  await page.locator('#preview-inspector > summary').click();
   await page.locator('#compare-save').click();
   await expect(page.locator('#compare-panel svg')).toHaveCount(2);
   await page.locator('#url').fill(url);
@@ -146,6 +155,57 @@ test('autosave, named projects, comparison and repair suggestions preserve user 
   await expect(page.locator('#foreground')).toHaveValue('#000000');
   await expect(page.locator('#margin')).toHaveValue('4');
   await check(page);
+  await page.locator('#check-close').click();
+  await expect(page.locator('#check-results')).toBeHidden();
+  await page.locator('#url').fill('https://morphiq.com.mx/otra-liga');
+  await expect(page.locator('#destination')).toHaveText('https://morphiq.com.mx/otra-liga');
+  await page.locator('#repair-undo').click();
+  await expect(page.locator('#foreground')).toHaveValue('#eeeeee');
+  await expect(page.locator('#margin')).toHaveValue('1');
+  await expect(page.locator('#url')).toHaveValue('https://morphiq.com.mx/otra-liga');
+  await expect(page.locator('#repair-undo-row')).toBeHidden();
+  await page.locator('#repair-qr').click();
+  await expect(page.locator('#repair-apply')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#repair-close').click();
+  await expect(page.locator('#repair-result')).toBeHidden();
+  await page.locator('#preview-inspector > summary').click();
+  await expect(page.locator('#repair-qr')).toBeHidden();
+});
+
+test('reference frames stay outside study mode, all labels export, and mobile preview follows edits', async ({
+  page,
+}, info) => {
+  await page.goto('/');
+  await expect(page.locator('#advanced-tools')).toBeHidden();
+  await page.locator('#border-settings > summary > span').click();
+  await page.locator('#border-enabled').check();
+  await page.locator('#border-gallery > summary').click();
+  await expect(page.locator('#border-options [data-border]')).toHaveCount(43);
+  await page.locator('[data-border="discover-landscape"]').click();
+  await page.locator('#border-text').fill('Visita Morphiq');
+  await page.locator('#border-text-secondary').fill('Cliente & marca');
+  await page.locator('#border-text-footer').fill('Una nueva experiencia');
+  await expect(page.locator('#qr-preview')).toContainText('Cliente & marca');
+  const path = await download(page, 'svg', info, 'editorial');
+  const svg = await readFile(path, 'utf8');
+  expect(svg).toContain('Cliente &amp; marca');
+  expect(svg).toContain('Una nueva experiencia');
+  expect(await decoded(path)).toBe(url);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#border-text').scrollIntoViewIfNeeded();
+  await expect(page.locator('.following-preview')).toBeVisible();
+  await field(page, 'border-color', '#582C83');
+  await expect(page.locator('#follow-qr rect[fill="#582C83"]')).toHaveCount(1);
+  await page.locator('#follow-expand').click();
+  await expect(page.locator('#preview-dialog')).toBeVisible();
+  await page.locator('#follow-close').click();
+  await page.locator('#follow-toggle').click();
+  await expect(page.locator('#follow-expand')).toBeHidden();
+  await page.locator('#follow-toggle').click();
+  await expect(page.locator('#follow-expand')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('frame-mobile.png') });
+  await page.locator('#nav-scan').click();
+  await expect(page.locator('.following-preview')).toBeHidden();
 });
 
 test('framed vector and bitmap PDFs match the readable exported design and print size', async ({
@@ -154,6 +214,7 @@ test('framed vector and bitmap PDFs match the readable exported design and print
   test.setTimeout(180_000);
   await page.goto('/');
   await advanced(page);
+  await page.locator('#border-settings > summary > span').click();
   await page.locator('#border-enabled').check();
   await page.locator('#border-controls details').evaluate((d) => (d.open = true));
   await page.locator('[data-border="band"]').click();

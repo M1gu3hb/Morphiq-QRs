@@ -380,7 +380,7 @@ https://morphiq.com.mx</textarea>
               role="group"
               aria-label="Símbolos populares"
             ></div>
-            <div class="image-settings" id="image-settings">
+            <div class="image-settings" id="image-settings" hidden>
               <label class="select-label" for="image-mode">Integración</label
               ><select id="image-mode">
                 <option value="center">Imagen central</option>
@@ -457,7 +457,7 @@ https://morphiq.com.mx</textarea>
                     type="range"
                     min="-5"
                     max="5"
-                    step="1"
+                    step="0.01"
                     value="0"
                   />
                 </div>
@@ -472,7 +472,7 @@ https://morphiq.com.mx</textarea>
                     type="range"
                     min="-5"
                     max="5"
-                    step="1"
+                    step="0.01"
                     value="0"
                   />
                 </div>
@@ -518,6 +518,122 @@ https://morphiq.com.mx</textarea>
                 </div>
               </div>
             </div>
+          </section>
+          <section class="control-section">
+            <details class="studio-details" id="border-settings">
+              <summary>
+                <span>Marcos</span>
+                <button type="button" class="mini-action" data-random="border">Mezclar</button>
+              </summary>
+              <label class="switch-label"
+                ><input id="border-enabled" type="checkbox" />Activar marco</label
+              ><input id="border-type" type="hidden" value="band" />
+              <div id="border-controls" hidden>
+                <details class="style-menu" id="border-gallery">
+                  <summary>
+                    <span id="border-name">Banda</span
+                    ><span class="menu-count" id="border-count">43 marcos</span>
+                  </summary>
+                  <div
+                    id="border-filter"
+                    class="frame-filter"
+                    role="group"
+                    aria-label="Familias de marcos"
+                  ></div>
+                  <input
+                    id="border-search"
+                    type="search"
+                    placeholder="Buscar marco"
+                    aria-label="Buscar marco"
+                  />
+                  <div id="border-options" class="frame-options"></div>
+                </details>
+                <div class="frame-text-field">
+                  <label id="border-text-label" class="select-label" for="border-text"
+                    >Texto principal</label
+                  ><textarea id="border-text" rows="2" maxlength="100">Escanéame</textarea>
+                </div>
+                <div class="frame-text-field" id="border-secondary-field" hidden>
+                  <label
+                    id="border-text-secondary-label"
+                    class="select-label"
+                    for="border-text-secondary"
+                    >Texto secundario</label
+                  ><input
+                    id="border-text-secondary"
+                    type="text"
+                    maxlength="100"
+                    value="Abre tu cámara"
+                  />
+                </div>
+                <div class="frame-text-field" id="border-footer-field" hidden>
+                  <label id="border-text-footer-label" class="select-label" for="border-text-footer"
+                    >Texto inferior</label
+                  ><textarea id="border-text-footer" rows="2" maxlength="140">
+morphiq.com.mx</textarea>
+                </div>
+                <label class="select-label" for="border-font">Tipografía</label
+                ><select id="border-font">
+                  <option value="auto">Del diseño</option>
+                  <option value="sans">Sans serif</option>
+                  <option value="serif">Serif</option>
+                  <option value="script">Manuscrita</option>
+                  <option value="mono">Monoespaciada</option>
+                </select>
+                <label class="switch-label"
+                  ><input id="border-gradient" type="checkbox" />Degradado del marco</label
+                >
+                <div id="border-gradient-controls" hidden>
+                  <label class="small-label" for="pick-border-accent-color">Segundo color</label
+                  ><input id="border-accent-color" type="hidden" value="#337cff" /><button
+                    id="pick-border-accent-color"
+                    type="button"
+                    class="color-trigger"
+                    data-picker="border-accent-color"
+                    aria-label="Elegir segundo color del marco"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                  >
+                    <span class="color-chip"></span
+                    ><output id="border-accent-color-hex">#337CFF</output>
+                  </button>
+                </div>
+                <button type="button" class="mini-action" data-random="border-palette">
+                  Mezclar colores del marco
+                </button>
+                <div class="two-cols">
+                  <div>
+                    <label class="small-label" for="pick-border-color">Marco</label
+                    ><input id="border-color" type="hidden" value="#123ca3" /><button
+                      id="pick-border-color"
+                      type="button"
+                      class="color-trigger"
+                      data-picker="border-color"
+                      aria-label="Elegir Marco"
+                      aria-haspopup="dialog"
+                      aria-expanded="false"
+                    >
+                      <span class="color-chip"></span><output id="border-color-hex">#123ca3</output>
+                    </button>
+                  </div>
+                  <div>
+                    <label class="small-label" for="pick-border-text-color">Texto</label
+                    ><input id="border-text-color" type="hidden" value="#ffffff" /><button
+                      id="pick-border-text-color"
+                      type="button"
+                      class="color-trigger"
+                      data-picker="border-text-color"
+                      aria-label="Elegir Texto"
+                      aria-haspopup="dialog"
+                      aria-expanded="false"
+                    >
+                      <span class="color-chip"></span
+                      ><output id="border-text-color-hex">#ffffff</output>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </details>
           </section>
           <section class="control-section advanced-toggle">
             <label class="switch-label"
@@ -572,62 +688,7 @@ https://morphiq.com.mx</textarea>
                 </button>
               </details>
             </section>
-            <section class="control-section">
-              <details class="studio-details" id="border-settings">
-                <summary>
-                  Marcos
-                  <button type="button" class="mini-action" data-random="border">Mezclar</button>
-                </summary>
-                <label class="switch-label"
-                  ><input id="border-enabled" type="checkbox" />Activar marco</label
-                ><input id="border-type" type="hidden" value="band" />
-                <div id="border-controls" hidden>
-                  <details class="style-menu">
-                    <summary>
-                      <span id="border-name">Banda</span><span class="menu-count">14 marcos</span>
-                    </summary>
-                    <div id="border-options" class="frame-options"></div>
-                  </details>
-                  <label class="select-label" for="border-text">Texto del marco</label
-                  ><input id="border-text" type="text" maxlength="60" value="Escanéame" />
-                  <button type="button" class="mini-action" data-random="border-palette">
-                    Mezclar colores del marco
-                  </button>
-                  <div class="two-cols">
-                    <div>
-                      <label class="small-label" for="pick-border-color">Marco</label
-                      ><input id="border-color" type="hidden" value="#123ca3" /><button
-                        id="pick-border-color"
-                        type="button"
-                        class="color-trigger"
-                        data-picker="border-color"
-                        aria-label="Elegir Marco"
-                        aria-haspopup="dialog"
-                        aria-expanded="false"
-                      >
-                        <span class="color-chip"></span
-                        ><output id="border-color-hex">#123ca3</output>
-                      </button>
-                    </div>
-                    <div>
-                      <label class="small-label" for="pick-border-text-color">Texto</label
-                      ><input id="border-text-color" type="hidden" value="#ffffff" /><button
-                        id="pick-border-text-color"
-                        type="button"
-                        class="color-trigger"
-                        data-picker="border-text-color"
-                        aria-label="Elegir Texto"
-                        aria-haspopup="dialog"
-                        aria-expanded="false"
-                      >
-                        <span class="color-chip"></span
-                        ><output id="border-text-color-hex">#ffffff</output>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </details>
-            </section>
+
             <section class="control-section">
               <details class="studio-details">
                 <summary>Silueta PNG</summary>
@@ -804,12 +865,27 @@ https://morphiq.com.mx</textarea>
             ><span id="download-label">Descargar PNG</span>
           </button>
           <p class="small-note" id="export-note"></p>
-          <div class="preview-tools">
-            <button id="compare-save" type="button" class="tool-button">Guardar variante A</button
-            ><button id="repair-qr" type="button" class="tool-button">Sugerir reparación</button>
-          </div>
-          <div id="repair-result" class="variant-result" hidden></div>
-          <div id="compare-panel" class="compare-panel" hidden></div>
+          <details id="preview-inspector" class="studio-details preview-inspector">
+            <summary>Revisión y variantes</summary>
+            <div class="preview-tools">
+              <button id="compare-save" type="button" class="tool-button">Guardar variante A</button
+              ><button id="repair-qr" type="button" class="tool-button">Sugerir reparación</button>
+            </div>
+            <div id="repair-result" class="variant-result" hidden>
+              <div class="result-heading">
+                <span class="eyebrow">SUGERENCIA</span
+                ><button id="repair-close" type="button" class="mini-action">Cerrar</button>
+              </div>
+              <div id="repair-content" role="status" aria-live="polite"></div>
+            </div>
+            <div id="repair-undo-row" class="repair-undo" hidden>
+              <span>Reparación aplicada</span
+              ><button id="repair-undo" type="button" class="mini-action">
+                Deshacer reparación
+              </button>
+            </div>
+            <div id="compare-panel" class="compare-panel" hidden></div>
+          </details>
           <button type="button" class="check-button" id="check-qr">
             <svg
               viewBox="0 0 24 24"
@@ -826,6 +902,10 @@ https://morphiq.com.mx</textarea>
             ><span id="check-label">Comprobar QR</span>
           </button>
           <div class="check-results" id="check-results" hidden>
+            <div class="result-heading">
+              <span class="eyebrow">COMPROBACIÓN</span
+              ><button id="check-close" type="button" class="mini-action">Ocultar</button>
+            </div>
             <p class="check-summary" id="check-summary" role="status" aria-live="polite"></p>
             <ol class="check-trials" id="check-trials">
               <li id="check-step-0" data-state="waiting">

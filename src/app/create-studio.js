@@ -79,7 +79,7 @@ export function createStudio() {
     return hasLogo() && qr
       ? QRImage.geometry(qr, Number($('margin').value), logo, {
           sizeModules: Number($('logo-size').value),
-          snapPan: true,
+          panMode: 'modules',
           zoom: Number($('image-zoom').value),
           x: Number($('image-x').value),
           y: Number($('image-y').value),
@@ -150,13 +150,12 @@ export function createStudio() {
     checkToken++;
     checking = false;
     verifiedKey = '';
-    if (!$('check-results').hidden) {
-      $('check-summary').textContent = 'El diseño cambió. Vuelve a comprobar el QR.';
-      $('check-advice').textContent = '';
-      $('check-destination').textContent = '';
-      $('check-results').dataset.result = 'changed';
-      QRCheck.tests.forEach((_, i) => setCheckStep(i, 'waiting'));
-    }
+    $('check-results').hidden = true;
+    $('check-summary').textContent = '';
+    $('check-advice').textContent = '';
+    $('check-destination').textContent = '';
+    $('check-results').dataset.result = 'changed';
+    QRCheck.tests.forEach((_, i) => setCheckStep(i, 'waiting'));
   }
   function setCheckStep(i, state) {
     const row = $('check-step-' + i);
@@ -273,7 +272,8 @@ export function createStudio() {
     if (central) setEcc('H');
     document.querySelector('input[name="ecc"][value="M"]').disabled = central;
     $('ecc-note').textContent = central ? 'Alta activada para la imagen.' : '';
-    $('image-settings').classList.toggle('visible', !!logo);
+    $('image-settings').hidden = !hasLogo();
+    $('image-settings').classList.toggle('visible', hasLogo());
     $('image-name').textContent = logo ? logo.name : '';
     const centralMode = $('image-mode').value === 'center';
     $('logo-size').closest('.control-row').hidden = !centralMode;
@@ -326,7 +326,7 @@ export function createStudio() {
           ['y', imageGeometry.travelY],
         ]) {
           const slider = $('image-' + axis),
-            limit = Math.max(1, Math.floor(travel));
+            limit = Math.max(1, Math.floor(travel * 100) / 100);
           const value = QRImage.clamp(Number(slider.value), -limit, limit);
           slider.min = String(-limit);
           slider.max = String(limit);
@@ -656,6 +656,9 @@ export function createStudio() {
   });
   $('download').addEventListener('click', exportQr);
   $('check-qr').addEventListener('click', checkQr);
+  $('check-close').addEventListener('click', () => {
+    $('check-results').hidden = true;
+  });
   render();
 
   function getState() {

@@ -21,19 +21,19 @@ export function bindImageEditor({ getGeometry, canEdit, onChange }) {
   $('image-editor').addEventListener('pointermove', (e) => {
     if (!imageDrag || imageDrag.id !== e.pointerId) return;
     e.preventDefault();
-    $('image-x').value = Math.round(
+    $('image-x').value = Number(
       QRImage.clamp(
         imageDrag.panX + (e.clientX - imageDrag.x) * imageDrag.unit,
         Number($('image-x').min),
         Number($('image-x').max),
-      ),
+      ).toFixed(2),
     );
-    $('image-y').value = Math.round(
+    $('image-y').value = Number(
       QRImage.clamp(
         imageDrag.panY + (e.clientY - imageDrag.y) * imageDrag.unit,
         Number($('image-y').min),
         Number($('image-y').max),
-      ),
+      ).toFixed(2),
     );
     onChange();
   });
@@ -44,7 +44,7 @@ export function bindImageEditor({ getGeometry, canEdit, onChange }) {
   );
   $('image-editor').addEventListener('keydown', (e) => {
     if (!canEdit()) return;
-    const delta = e.shiftKey ? 5 : 1;
+    const delta = e.altKey ? 0.01 : e.shiftKey ? 1 : 0.1;
     if (['ArrowLeft', 'ArrowRight'].includes(e.key))
       $('image-x').value = QRImage.clamp(
         Number($('image-x').value) + (e.key === 'ArrowLeft' ? -delta : delta),

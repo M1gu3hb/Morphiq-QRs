@@ -1,22 +1,20 @@
 import { removeUniformBackground } from '../image/background.js';
 import { QRStyles } from '../qr/styles.js';
 import { PALETTES } from '../qr/color-effects.js';
-import { FRAMES, frameSvg } from '../frames/catalog.js';
-import { encodePayload } from '../qr/encoder.js';
+import { FRAMES } from '../frames/catalog.js';
 import { renderQrSvg } from '../qr/renderer.js';
-import { QRCheck } from '../validation/qr-checker.js';
 import { readFile } from '../image/image-loader.js';
 import { prepareSilhouette } from '../image/silhouette.js';
-import { icon, logoImage } from '../ui/icons.js';
+import { logoIcon, logoImage } from '../ui/icons.js';
 import { namespaceSvg } from '../ui/svg.js';
 import { saveFile } from '../utils/files.js';
 import { initBatch } from './batch.js';
+import { initRepair } from './repair.js';
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 export function initAdvanced(studio) {
   const el = (id) => document.getElementById(id);
   let variant = null,
-    repairRevision = 0,
     silhouetteRevision = 0;
   let imageBefore = null,
     imageAfterData = null;
@@ -43,7 +41,6 @@ export function initAdvanced(studio) {
     studio.applyState(state);
     el('restore-image-background').hidden = true;
   });
-  const sample = encodePayload('https://morphiq.com.mx');
   el('popular-logos').innerHTML = [
     'whatsapp',
     'facebook',
@@ -57,7 +54,7 @@ export function initAdvanced(studio) {
   ]
     .map(
       (name) =>
-        `<button type="button" data-logo="${name}" title="${name}" aria-label="Usar símbolo ${name}">${icon(name)}</button>`,
+        `<button type="button" data-logo="${name}" title="${name}" aria-label="Usar símbolo ${name}">${namespaceSvg(logoIcon(name), 'popular-' + name)}</button>`,
     )
     .join('');
   document
@@ -68,10 +65,6 @@ export function initAdvanced(studio) {
   el('palette-options').innerHTML = PALETTES.map(
     (p, i) =>
       `<button type="button" data-palette="${i}" title="${p.name}"><i style="background:linear-gradient(135deg,${p.a},${p.b})"></i><span>${p.name}</span></button>`,
-  ).join('');
-  el('border-options').innerHTML = FRAMES.map(
-    (f) =>
-      `<button type="button" class="frame-option" data-border="${f.id}"><span>${namespaceSvg(frameSvg(renderQrSvg(sample, { size: 128 }), { size: 128, background: '#fff', border: { enabled: true, type: f.id, text: 'Escanéame', color: '#123ca3', textColor: '#fff' } }), 'frame-' + f.id)}</span><b>${f.name}</b></button>`,
   ).join('');
   function palette(p) {
     el('foreground').value = p.a;
@@ -85,13 +78,6 @@ export function initAdvanced(studio) {
     b.addEventListener('click', () => {
       palette(PALETTES[Number(b.dataset.palette)]);
       studio.render();
-    }),
-  );
-  document.querySelectorAll('[data-border]').forEach((b) =>
-    b.addEventListener('click', () => {
-      el('border-type').value = b.dataset.border;
-      studio.render();
-      b.closest('details').open = false;
     }),
   );
   function random(kind) {
@@ -153,20 +139,12 @@ export function initAdvanced(studio) {
       el('restore-image-background').hidden = true;
     }
     el('advanced-tools').hidden = !el('advanced-enabled').checked;
-    el('border-controls').hidden = !el('border-enabled').checked;
     el('print-controls').hidden = !el('print-enabled').checked;
-    el('border-name').textContent =
-      FRAMES.find((f) => f.id === el('border-type').value)?.name || 'Banda';
     el('gradient-angle-value').textContent = el('gradient-angle').value + '°';
-    for (const id of ['gradient-color', 'border-color', 'border-text-color']) {
+    for (const id of ['gradient-color']) {
       el(id + '-hex').textContent = el(id).value.toUpperCase();
       document.querySelector(`[data-picker="${id}"]`).style.setProperty('--picked', el(id).value);
     }
-    document
-      .querySelectorAll('[data-border]')
-      .forEach((b) =>
-        b.setAttribute('aria-pressed', String(b.dataset.border === el('border-type').value)),
-      );
     const options = studio.getOptions(),
       svg = studio.getSvg(),
       view = svg.match(/viewBox="([^\"]+)"/),
@@ -188,17 +166,12 @@ export function initAdvanced(studio) {
       studio.getState().silhouette?.name ||
       'Elige un PNG con transparencia y una zona interior amplia.';
     if (variant) showCompare();
-    repairRevision++;
   }
   const extraIds = [
     'advanced-enabled',
     'gradient-mode',
     'gradient-color',
     'gradient-angle',
-    'border-enabled',
-    'border-text',
-    'border-color',
-    'border-text-color',
     'silhouette-enabled',
     'campaign-enabled',
     'utm-source',
@@ -259,89 +232,7 @@ export function initAdvanced(studio) {
     variant = { svg: studio.getSvg(), state: structuredClone(studio.getState()) };
     showCompare();
   });
-  el('repair-qr').addEventListener('click', async () => {
-    if (!studio.qr || studio.busy) return;
-    const token = ++repairRevision,
-      payload = studio.payload,
-      base = structuredClone(studio.getOptions()),
-      state = structuredClone(studio.getState()),
-      panel = el('repair-result');
-    panel.hidden = false;
-    panel.textContent = 'Buscando una variante legible…';
-    el('repair-qr').disabled = true;
-    try {
-      for (let i = 0; i < 3; i++) {
-        const options = {
-          ...base,
-          margin: Math.max(4, base.margin),
-          foreground: '#000000',
-          eyes: '#000000',
-          background: '#ffffff',
-          gradient: { mode: 'none' },
-          imageBackground: '#ffffff',
-          imageModules: Math.min(base.imageModules || 7, i === 0 ? 6 : 4),
-          blend: 'weave',
-        };
-        if (i >= 1) {
-          options.module = 'extra-rounded';
-          options.eye = 'rounded';
-          options.center = 'rounded';
-        }
-        if (i === 2) {
-          options.silhouette = null;
-          options.imageMode = 'center';
-          options.border = { ...base.border, enabled: false };
-        }
-        const qr = encodePayload(payload, {
-            ecc: 'H',
-            hasImage: !!options.image,
-            imageModules: options.imageMode === 'center' ? options.imageModules : 0,
-          }),
-          svg = renderQrSvg(qr, options),
-          result = await QRCheck.run(svg, payload, {
-            isCurrent: () => token === repairRevision,
-            onStep: (index, phase) => {
-              if (token === repairRevision)
-                panel.textContent = `Variante ${i + 1} · prueba ${index + 1} / 4 · ${phase === 'running' ? 'leyendo' : 'revisada'}`;
-            },
-          });
-        if (token !== repairRevision) return;
-        if (!result?.passed) continue;
-        const candidate = structuredClone(state);
-        Object.assign(candidate.fields, {
-          margin: String(options.margin),
-          foreground: '#000000',
-          'eye-color': '#000000',
-          background: '#ffffff',
-          'gradient-mode': 'none',
-          'logo-size': String(options.imageModules),
-          'logo-base-auto': true,
-        });
-        candidate.ecc = 'H';
-        candidate.styles.blend = 'weave';
-        candidate.styles.module = options.module;
-        candidate.styles.eye = options.eye;
-        candidate.styles.center = options.center;
-        if (i === 2) {
-          candidate.fields['silhouette-enabled'] = false;
-          candidate.fields['border-enabled'] = false;
-          candidate.fields['image-mode'] = 'center';
-        }
-        panel.innerHTML = `<span class="eyebrow">4 DE 4 LECTURAS</span><div class="variant-qr">${namespaceSvg(svg, 'repair')}</div><p class="small-note">Margen amplio, tinta negra, resistencia alta${options.image ? ' y menor área de imagen' : ''}${i >= 1 ? ', formas conectadas' : ''}${i === 2 ? ' y silueta/marco desactivados' : ''}.</p><button id="repair-apply" type="button" class="tool-button">Aplicar esta sugerencia</button>`;
-        el('repair-apply').addEventListener('click', () => {
-          studio.applyState(candidate);
-          panel.hidden = true;
-        });
-        return;
-      }
-      panel.textContent =
-        'No se encontró una variante que supere las cuatro lecturas. Reduce la imagen, usa un contenido más corto o aumenta el margen.';
-    } catch (error) {
-      panel.textContent = error.message;
-    } finally {
-      el('repair-qr').disabled = false;
-    }
-  });
+  initRepair(studio);
   el('print-sheet').addEventListener('click', async () => {
     if (!studio.qr || studio.busy) return;
     el('print-sheet').disabled = true;

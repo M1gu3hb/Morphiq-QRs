@@ -16,6 +16,7 @@ export const QRImage = (() => {
       fit = 'auto',
       frame = 'square',
       snapPan = false,
+      panMode = 'percent',
     } = {},
   ) {
     const side = clamp(
@@ -39,12 +40,14 @@ export const QRImage = (() => {
     return {
       side,
       start,
-      x: snapPan
-        ? Math.round(start + (side - w) / 2 + x)
-        : start + (side - w) / 2 + (clamp(x, -100, 100) / 100) * travelX,
-      y: snapPan
-        ? Math.round(start + (side - h) / 2 + y)
-        : start + (side - h) / 2 + (clamp(y, -100, 100) / 100) * travelY,
+      x:
+        snapPan || panMode === 'modules'
+          ? start + (side - w) / 2 + clamp(x, -travelX, travelX)
+          : start + (side - w) / 2 + (clamp(x, -100, 100) / 100) * travelX,
+      y:
+        snapPan || panMode === 'modules'
+          ? start + (side - h) / 2 + clamp(y, -travelY, travelY)
+          : start + (side - h) / 2 + (clamp(y, -100, 100) / 100) * travelY,
       w,
       h,
       travelX,

@@ -3,14 +3,18 @@ import './styles/color-picker.css';
 import './styles/gallery.css';
 import './styles/image-editor.css';
 import './styles/advanced.css';
+import './styles/refinements.css';
 import { createStudio } from './app/create-studio.js';
 import { initColorPicker } from './ui/color-picker.js';
 import { initAdvanced } from './advanced/controller.js';
+import { initFrames } from './frames/controller.js';
 import { initProjects } from './projects/controller.js';
 import { initAccordions } from './ui/accordions.js';
 import { createScanner } from './scanner/controller.js';
 import { initPwa } from './pwa/install.js';
+import { initFollowingPreview } from './ui/following-preview.js';
 const studio = createStudio();
+initFrames(studio);
 initAdvanced(studio);
 initColorPicker();
 initProjects(studio);
@@ -40,3 +44,4 @@ view(
       : 'create',
 );
 initPwa(studio);
+initFollowingPreview(studio);

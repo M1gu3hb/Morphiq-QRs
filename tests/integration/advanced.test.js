@@ -18,6 +18,7 @@ import { rasterizeQr } from '../../src/export/raster.js';
 import { withDpi, physicalSvg } from '../../src/export/print-metadata.js';
 import { QRImage } from '../../src/image/framing.js';
 import { createStudio } from '../../src/app/create-studio.js';
+import { logoImage } from '../../src/ui/icons.js';
 
 const url = 'https://morphiq.com.mx';
 test('long payloads reserve a clear centered image area without removing alignment patterns', async (t) => {
@@ -99,6 +100,17 @@ test('image windows grow by whole modules; artwork and safe silhouettes decode',
     assert.equal(g.side, count);
     assert.equal(g.start % 1, 0);
   }
+  const initial = QRImage.geometry(qr, 4, image, { sizeModules: 5, panMode: 'modules' });
+  const fine = QRImage.geometry(qr, 4, image, {
+    sizeModules: 5,
+    panMode: 'modules',
+    x: 0.25,
+    y: -0.35,
+  });
+  assert.equal(fine.start, initial.start);
+  assert.equal(fine.side, initial.side);
+  assert.ok(Math.abs(fine.x - initial.x - 0.25) < 1e-10);
+  assert.ok(Math.abs(fine.y - initial.y + 0.35) < 1e-10);
   for (const mode of ['center', 'texture', 'background']) {
     const svg = renderQrSvg(qr, {
       margin: 4,
@@ -119,6 +131,27 @@ test('image windows grow by whole modules; artwork and safe silhouettes decode',
   const svg = renderQrSvg(qr, { margin: 4, silhouette });
   assert.equal(decodePixels(await svgPixels(svg, 1536)), url);
   assert.equal((await QRCheck.run(svg, url)).passed, true);
+});
+test('colored popular logos retain their colors through normalization and four QR reads', async (t) => {
+  const browser = await installBrowser();
+  t.after(() => browser.restore());
+  const qr = encodePayload(url, { hasImage: true });
+  for (const name of [
+    'whatsapp',
+    'facebook',
+    'instagram',
+    'spotify',
+    'youtube',
+    'wifi',
+    'phone',
+    'email',
+    'map',
+  ]) {
+    const image = await normalizeImage(logoImage(name), name);
+    assert.match(image.svg, /#[0-9a-f]{6}/i, name);
+    const svg = renderQrSvg(qr, { margin: 4, image, imageModules: 5 });
+    assert.equal((await QRCheck.run(svg, url)).passed, true, name);
+  }
 });
 test('projects round-trip data and images; imported SVG excludes executable resources', async (t) => {
   const browser = await installBrowser();

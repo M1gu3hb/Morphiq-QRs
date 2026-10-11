@@ -1,3 +1,4 @@
+import { BRAND_PATHS } from './brand-paths.js';
 const paths = {
   url: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/>',
   text: '<path d="M4 5h16M4 10h16M4 15h10M4 20h8"/>',
@@ -27,13 +28,29 @@ const paths = {
 export function icon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.url}</svg>`;
 }
-export function logoImage(name, color = '#000000') {
-  return (
-    'data:image/svg+xml;base64,' +
-    btoa(
-      icon(name)
-        .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" ')
-        .replace('currentColor', color),
-    )
-  );
+export function logoIcon(name) {
+  const colors = {
+    whatsapp: '#25D366',
+    facebook: '#0866FF',
+    spotify: '#1ED760',
+    youtube: '#FF0000',
+  };
+  let body;
+  if (name === 'instagram') {
+    body = `<defs><linearGradient id="instagram-gradient" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#FEDA75"/><stop offset=".35" stop-color="#FA7E1E"/><stop offset=".65" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(#instagram-gradient)"/><g transform="translate(4 4) scale(.666667)"><path d="${BRAND_PATHS.instagram}" fill="#ffffff"/></g>`;
+  } else if (BRAND_PATHS[name]) {
+    body =
+      (name === 'spotify' ? '<circle cx="12" cy="12" r="12" fill="#191414"/>' : '') +
+      `<path d="${BRAND_PATHS[name]}" fill="${colors[name]}"/>`;
+  } else if (name === 'email') {
+    body =
+      '<path d="M2 6v14h4V9Z" fill="#4285F4"/><path d="M18 9v11h4V6Z" fill="#34A853"/><path d="m2 6 10 8L22 6l-2-3-8 6-8-6Z" fill="#EA4335"/><path d="M18 5v7l4-3V6l-2-3Z" fill="#FBBC04"/><path d="M2 6v3l4 3V5L4 3Z" fill="#C5221F"/>';
+  } else {
+    const color = { wifi: '#087EFF', phone: '#16A34A', map: '#EA4335' }[name] || '#2563EB';
+    body = `<circle cx="12" cy="12" r="12" fill="${color}"/><g transform="translate(4 4) scale(.666667)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || paths.url}</g>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="256" height="256" aria-hidden="true">${body}</svg>`;
+}
+export function logoImage(name) {
+  return 'data:image/svg+xml;base64,' + btoa(logoIcon(name));
 }

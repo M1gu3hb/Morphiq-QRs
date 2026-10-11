@@ -16,17 +16,19 @@ No existen endpoints de generación, cuentas, redirecciones propias ni backend. 
 
 El catálogo define las familias conectadas, presets y compatibilidades entre esquinas y centros. Los patrones estructurales mantienen sus módulos; una textura no sustituye los datos de sincronización o alineación.
 
-La ventana central crece en unidades enteras: desde dos módulos hasta catorce, limitada también al 30% del ancho y al espacio libre de patrones. El codificador elige una versión que deje disponible el centro; con contenidos largos puede aumentar la densidad de la matriz. El tamaño de la ventana, el zoom de su contenido y la posición por módulos son independientes. La máscara mantiene visibles los patrones estructurales. No se reubican módulos codificados para rodear un logo.
+La ventana central crece en unidades enteras: desde dos módulos hasta catorce, limitada también al 30% del ancho y al espacio libre de patrones. El codificador elige una versión que deje disponible el centro; con contenidos largos puede aumentar la densidad de la matriz. El tamaño de la ventana, el zoom de su contenido y la posición continua son independientes. X/Y admiten centésimas de módulo; el arrastre no redondea a módulos completos. La máscara mantiene visibles los patrones estructurales. No se reubican módulos codificados para rodear un logo. El editor se oculta si no existe una imagen activa.
 
 Las imágenes se normalizan localmente a un máximo de 1024 píxeles y se recorta su relleno exterior. Un SVG se analiza como XML inerte y se conserva como vector estático, excluyendo scripts, eventos, recursos externos y elementos ejecutables. Los identificadores se separan por vista para evitar conflictos entre degradados o recortes.
 
 Una silueta usa el canal alfa de un PNG. Un algoritmo encuentra el mayor cuadrado opaco interior; allí se coloca el QR intacto con su zona libre. El resto del contorno recibe una trama decorativa. Si la figura no ofrece una zona suficientemente amplia, se rechaza con una explicación. La decoración no se presenta como una redistribución válida de la matriz.
 
+Los marcos tienen catálogo, controlador y renderer independientes. Sus 43 composiciones mantienen las coordenadas originales del QR, añadiendo decoración y hasta tres textos alrededor. El controlador está disponible sin modo estudio y crea las muestras antes de medir la animación de apertura. Una vista flotante sigue la composición actual cuando la vista principal queda fuera de pantalla; permite minimizar o ampliar el QR.
+
 ## Validación y exportación
 
 El decodificador recibe buffers por transferencia en un worker con solicitudes identificadas y tiempo límite. Si Worker no está disponible, se utiliza el mismo lector en el hilo principal. Los resultados obsoletos se descartan mediante revisión y token.
 
-La descarga individual verifica contraste y cuatro lecturas. Un lote usa una instantánea del diseño, comprueba cada contenido y omite los fallos en el ZIP con un reporte JSON. Una reparación ensaya variantes progresivas y ofrece un botón para aplicar la primera legible; la comparación conserva una instantánea A y muestra el diseño actual B.
+La descarga individual verifica contraste y cuatro lecturas. Un lote usa una instantánea del diseño, comprueba cada contenido y omite los fallos en el ZIP con un reporte JSON. Una reparación ensaya variantes progresivas y ofrece un botón para aplicar la primera legible; la comparación conserva una instantánea A y muestra el diseño actual B. Cerrar una sugerencia o cambiar el diseño cancela sus resultados pendientes. Deshacer compara las propiedades modificadas por la reparación y restaura únicamente las que siguen iguales a la sugerencia aplicada: conserva cambios posteriores de contenido o ajustes manuales. Los paneles de revisión son plegables y los resultados de comprobación pueden ocultarse.
 
 El PDF sencillo comparte los trazados del catálogo. Los diseños avanzados usan jsPDF y svg2pdf.js para mantener módulos, marcos, degradados y logos SVG vectoriales. Una composición central con fotografía y máscara se incorpora como un parche rasterizado de esa área, sin aplanar todo el QR. SVG conserva el vector completo y sus imágenes integradas.
 

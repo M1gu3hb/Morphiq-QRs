@@ -29,12 +29,12 @@ Vite genera `dist/`; el script posterior crea el service worker con un hash del 
 - **13 contenidos:** liga, WhatsApp con mensaje, Wi-Fi, contacto vCard, teléfono, correo, evento de calendario, Spotify, red social, aplicación, ubicación, texto y SMS.
 - **Diseño:** 32 combinaciones, 18 módulos principalmente conectados, 9 esquinas y 7 centros compatibles. Las muestras codifican `https://morphiq.com.mx`.
 - **Colores:** selector propio con saturación, brillo, tono, HEX y RGB; 8 paletas; tinta sólida, degradado lineal/radial y dúo tono con dirección editable.
-- **Imagen:** PNG/JPG/WebP y SVG sanitizado, recorte automático, área por módulos completos, zoom independiente, desplazamiento X/Y por módulos, arrastre, base de color y eliminación de fondo uniforme con restauración.
-- **Integración:** imagen central, trama QR, textura dentro de módulos y fotografía de fondo. Símbolo Morphiq y 9 símbolos populares listos para usar.
-- **Marcos:** 14 opciones con muestras, texto y colores editables, además de mezcla independiente de formas y paletas.
+- **Imagen:** PNG/JPG/WebP y SVG sanitizado, recorte automático, área por módulos completos, zoom independiente, desplazamiento X/Y continuo, arrastre, base de color y eliminación de fondo uniforme con restauración. El editor aparece únicamente con una imagen activa.
+- **Integración:** imagen central, trama QR, textura dentro de módulos y fotografía de fondo. Símbolo Morphiq y 9 símbolos populares a color listos para usar.
+- **Marcos:** 43 opciones disponibles en el editor normal, organizadas por familias y con búsqueda. Muestras reales, hasta tres campos de texto independientes, saltos de línea, tipografías, colores y degradados editables, además de mezcla independiente de formas y paletas. [Correspondencia de referencias](docs/frame-references.md).
 - **Siluetas PNG:** contorno con trama decorativa y un QR completo dentro de una zona interior opaca. Conserva la matriz legible; no deforma ni redistribuye los datos del QR.
 - **Proyectos:** autoguardado y hasta 100 proyectos locales en IndexedDB; exportación/importación JSON para respaldarlos o transferirlos.
-- **Estudio:** comparación A/B, mezcla general o por elemento y reparación asistida que presenta una variante comprobada antes de aplicarla.
+- **Estudio:** comparación A/B, mezcla general o por elemento y reparación asistida que presenta una variante comprobada antes de aplicarla. Las sugerencias se pueden cerrar y las reparaciones se pueden deshacer conservando cambios posteriores de contenido. Vista previa flotante ampliable y minimizable al recorrer los controles.
 - **Impresión:** ancho físico de 15–200 mm, 300/600 dpi, medidas proporcionales, densidad PNG/JPG, SVG con medidas en milímetros, PDF y etiquetas A4.
 - **Lotes:** hasta 100 QRs por ligas o CSV; salida ZIP en PNG/SVG/PDF, con cuatro lecturas por elemento y un reporte de archivos válidos y omitidos.
 - **Descargas:** PNG, SVG, PDF, JPG y WebP. Los módulos y marcos permanecen vectoriales en SVG/PDF; las fotografías se conservan como imágenes integradas.

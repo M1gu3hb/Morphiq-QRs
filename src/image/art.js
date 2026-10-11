@@ -14,8 +14,8 @@ export function artGeometry(qr, margin, image, options = {}) {
     start: margin,
     w,
     h,
-    x: Math.round(margin + (side - w) / 2 + (options.panX || 0)),
-    y: Math.round(margin + (side - h) / 2 + (options.panY || 0)),
+    x: margin + (side - w) / 2 + (options.panX || 0),
+    y: margin + (side - h) / 2 + (options.panY || 0),
     travelX: (w + side) / 2 - Math.min(w, side) * 0.25,
     travelY: (h + side) / 2 - Math.min(h, side) * 0.25,
   };

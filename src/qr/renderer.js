@@ -1,5 +1,5 @@
 import { applyColorEffect } from './color-effects.js';
-import { frameSvg } from '../frames/catalog.js';
+import { frameSvg } from '../frames/renderer.js';
 import { silhouetteSvg } from '../image/silhouette.js';
 import { imageArt } from '../image/art.js';
 import { QRStyles } from './styles.js';
@@ -38,6 +38,7 @@ export function renderQrSvg(qr, options) {
       size: imageSize,
       sizeModules: options.imageModules,
       snapPan: options.snapPan,
+      panMode: options.panMode,
       zoom,
       x: panX,
       y: panY,
