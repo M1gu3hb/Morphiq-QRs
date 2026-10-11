@@ -1,3 +1,21 @@
+.controls {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.control-section {
+  min-width: 0;
+}
+.frame-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.frame-option,
+.frame-option > span {
+  min-width: 0;
+}
+.frame-option svg {
+  width: 100%;
+  height: 100%;
+}
 .frame-filter {
   display: flex;
   gap: 5px;
@@ -16,6 +34,13 @@
 #border-search {
   width: calc(100% - 24px);
   margin: 6px 12px 0;
+  padding: 10px;
+  background: #080f1b;
+  border: 1px solid #2b3545;
+  border-radius: 6px;
+  color: #e4edfa;
+  font: inherit;
+  font-size: 13px;
 }
 .frame-text-field {
   margin-top: 14px;

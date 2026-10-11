@@ -181,6 +181,9 @@ test('reference frames stay outside study mode, all labels export, and mobile pr
   await page.locator('#border-enabled').check();
   await page.locator('#border-gallery > summary').click();
   await expect(page.locator('#border-options [data-border]')).toHaveCount(43);
+  const section = await page.locator('.control-section').first().boundingBox();
+  const preview = await page.locator('.preview-column').boundingBox();
+  expect(section.x + section.width).toBeLessThan(preview.x);
   await page.locator('[data-border="discover-landscape"]').click();
   await page.locator('#border-text').fill('Visita Morphiq');
   await page.locator('#border-text-secondary').fill('Cliente & marca');
@@ -194,6 +197,7 @@ test('reference frames stay outside study mode, all labels export, and mobile pr
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#border-text').scrollIntoViewIfNeeded();
   await expect(page.locator('.following-preview')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await field(page, 'border-color', '#582C83');
   await expect(page.locator('#follow-qr rect[fill="#582C83"]')).toHaveCount(1);
   await page.locator('#follow-expand').click();
