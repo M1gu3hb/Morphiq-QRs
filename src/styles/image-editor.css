@@ -1,0 +1,120 @@
+.image-framing {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 20px;
+  margin-top: 18px;
+  align-items: center;
+}
+.image-editor {
+  width: 150px;
+  aspect-ratio: 1;
+  background: white;
+  border: 1px solid #6687b8;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+.image-editor:active {
+  cursor: grabbing;
+}
+.image-editor svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.framing-actions .brand-button {
+  margin-top: 10px;
+  width: 100%;
+}
+.framing-hint {
+  font-size: 10px;
+  color: #a6bad9;
+  margin: 10px 0 0;
+}
+.check-button {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 13px 10px;
+  border: 1px solid #759bd866;
+  border-radius: 4px;
+  background: #0e2341;
+  color: #d5e6ff;
+  font-size: 12px;
+}
+.check-button:hover {
+  background: #183660;
+}
+.check-results {
+  margin-top: 15px;
+  border-top: 1px solid #ffffff25;
+  padding-top: 13px;
+}
+.check-summary {
+  font-size: 12px;
+  color: #c8dcfc;
+  margin: 0 0 12px;
+}
+.check-trials {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 9px;
+}
+.check-trials li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: #a8bcd9;
+}
+.trial-state {
+  font:
+    9px ui-monospace,
+    Consolas,
+    monospace;
+  color: #849ab8;
+}
+.check-trials [data-state='running'] .trial-state {
+  color: #9bc4ff;
+}
+.check-trials [data-state='passed'] .trial-state {
+  color: #9bdbb3;
+}
+.check-trials [data-state='failed'] .trial-state {
+  color: #ffb486;
+}
+.check-advice {
+  font-size: 11px;
+  color: #ffd0a8;
+  line-height: 1.6;
+  margin: 12px 0 0;
+}
+.check-destination {
+  font:
+    9px/1.5 ui-monospace,
+    Consolas,
+    monospace;
+  color: #90accf;
+  overflow-wrap: anywhere;
+  margin: 10px 0 0;
+}
+.check-results[data-result='passed'] .check-summary {
+  color: #a7e3bd;
+}
+.check-results[data-result='failed'] .check-summary {
+  color: #ffc095;
+}
+@media (max-width: 380px) {
+  .image-framing {
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+  }
+  .image-editor {
+    width: 110px;
+  }
+}

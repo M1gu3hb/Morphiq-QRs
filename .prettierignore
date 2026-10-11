@@ -1,0 +1,6 @@
+src/vendor/
+public/vendor/
+licenses/
+package-lock.json
+dist/
+node_modules/

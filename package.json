@@ -1,0 +1,35 @@
+{
+  "name": "morphiq-qrs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Estudio QR de Morphiq, con personalización y verificación local en el navegador.",
+  "author": "M1gu3hb",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "check": "npm run test && npm run test:integration && npm run build",
+    "format": "prettier --write src tests docs index.html *.json *.js README.md .github",
+    "format:check": "prettier --check src tests docs index.html *.json *.js README.md .github"
+  },
+  "dependencies": {
+    "jsqr": "1.4.0"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "0.1.100",
+    "linkedom": "0.18.12",
+    "prettier": "3.9.10",
+    "sharp": "0.34.5",
+    "vite": "8.3.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/M1gu3hb/Morphiq-QRs.git"
+  }
+}

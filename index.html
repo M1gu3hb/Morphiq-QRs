@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="es" prefix="og: https://ogp.me/ns#">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>Morphiq QR</title>
+    <meta
+      name="description"
+      content="Generador de códigos QR de Morphiq. Colores, estilos, imagen central y descargas PNG, SVG, PDF, JPG y WebP."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <link rel="canonical" href="https://morphiqqr.vercel.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Morphiq QR" />
+    <meta property="og:title" content="Morphiq QR" />
+    <meta
+      property="og:description"
+      content="Crea y personaliza códigos QR con colores, imagen central y descargas PNG, SVG, PDF, JPG y WebP."
+    />
+    <meta property="og:url" content="https://morphiqqr.vercel.app/" />
+    <meta property="og:locale" content="es_MX" />
+    <meta property="og:image" content="https://morphiqqr.vercel.app/assets/og-morphiq-qr-v1.jpg" />
+    <meta
+      property="og:image:secure_url"
+      content="https://morphiqqr.vercel.app/assets/og-morphiq-qr-v1.jpg"
+    />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Morphiq QR: símbolo QR azul, wordmark Morphiq y enlace https://morphiqqr.vercel.app/ sobre un fondo ASCII negro y azul eléctrico."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Morphiq QR" />
+    <meta name="twitter:description" content="Personaliza y descarga tus códigos QR." />
+    <meta name="twitter:image" content="https://morphiqqr.vercel.app/assets/og-morphiq-qr-v1.jpg" />
+    <meta
+      name="twitter:image:alt"
+      content="Morphiq QR sobre un fondo ASCII negro y azul eléctrico."
+    />
+  </head>
+  <body>
+    <div class="background" aria-hidden="true">
+      <glyphos-field
+        class="texture"
+        pointer="window"
+        recipe='{"v":2,"source":"pattern","layers":[{"on":true,"pattern":"ondas","a":0.2,"b":0.5,"scale":1,"speed":1},{"on":true,"pattern":"interferencia","blend":"multiply","mix":0.5,"scale":0.7,"speed":1}],"motion":{"speed":0.65,"loop":0},"glyph":{"cell":10,"aspect":1.4,"charset":" .:-=+*#%@","font":"system","weight":400,"scale":1,"mode":"density","sort":true},"color":{"mode":"ramp","stops":["#050f2c","#0845b5","#1680ff","#72c3ff"],"bg":"#000000","map":"luma"},"interact":{"mode":"none","auto":false},"fx":{"glow":0.16,"bloom":0.12,"vig":0.2},"meta":{"name":"Marea \u00b7 Morphiq"}}'
+      ></glyphos-field>
+    </div>
+    <header>
+      <div class="brand">
+        <div class="logo">
+          <img
+            id="brand-image"
+            src="/assets/morphiq-logo.webp"
+            alt="Morphiq"
+            width="640"
+            height="427"
+          />
+        </div>
+        <span class="product">QR</span>
+      </div>
+      <button id="reset" class="header-action" type="button" title="Restablecer ajustes">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <path
+            d="M4 10a8 8 0 1 1 1 7M4 4v6h6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          /></svg
+        ><span>Restablecer</span>
+      </button>
+    </header>
+    <main>
+      <div class="page-title">
+        <h1>Generador QR</h1>
+        <span class="index">MORPHIQ / 001</span>
+      </div>
+      <div class="workbench">
+        <div class="controls">
+          <section class="control-section">
+            <div class="section-heading">
+              <h2>Contenido</h2>
+              <span class="section-no">01</span>
+            </div>
+            <div class="line-label">
+              <label for="url" class="field-label">Liga de destino</label
+              ><button id="paste" class="paste" type="button">Pegar</button>
+            </div>
+            <textarea
+              id="url"
+              placeholder="https://"
+              rows="2"
+              spellcheck="false"
+              autocomplete="off"
+              inputmode="url"
+            >
+https://morphiq.com.mx</textarea>
+            <div class="input-meta">
+              <span id="url-meta">https:// automático</span
+              ><span id="char-count">21 caracteres</span>
+            </div>
+          </section>
+          <section class="control-section styles-section">
+            <div class="section-heading">
+              <h2>Tipos de QR</h2>
+              <span class="section-no">02</span>
+            </div>
+            <details class="style-menu preset-menu" id="preset-menu">
+              <summary>
+                <span class="summary-qr" id="preset-icon" aria-hidden="true"></span
+                ><span class="summary-text"
+                  ><span class="menu-label">Diseño completo</span
+                  ><span class="menu-value" id="preset-name">Clásico</span></span
+                ><span id="preset-count" class="menu-count">64 estilos</span
+                ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
+                </svg>
+              </summary>
+              <div class="catalog-meta"><span>MUESTRAS</span><span>morphiq.com.mx</span></div>
+              <div
+                id="preset-options"
+                class="preset-options"
+                role="group"
+                aria-label="Diseños de QR"
+              ></div>
+            </details>
+            <div class="custom-heading">Combinar formas</div>
+            <div class="shape-menus">
+              <details class="style-menu shape-menu" id="module-menu">
+                <summary>
+                  <span class="summary-icon" id="module-icon" aria-hidden="true"></span
+                  ><span class="summary-text"
+                    ><span class="menu-label">Módulos</span
+                    ><span class="menu-value" id="module-name">Rectos</span></span
+                  ><span id="module-count" class="menu-count">41</span
+                  ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
+                  </svg>
+                </summary>
+                <div
+                  id="module-options"
+                  class="shape-options"
+                  role="group"
+                  aria-label="Módulos"
+                ></div>
+              </details>
+              <details class="style-menu shape-menu" id="eye-menu">
+                <summary>
+                  <span class="summary-icon" id="eye-icon" aria-hidden="true"></span
+                  ><span class="summary-text"
+                    ><span class="menu-label">Esquinas</span
+                    ><span class="menu-value" id="eye-name">Rectas</span></span
+                  ><span id="eye-count" class="menu-count">9</span
+                  ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
+                  </svg>
+                </summary>
+                <div
+                  id="eye-options"
+                  class="shape-options"
+                  role="group"
+                  aria-label="Esquinas"
+                ></div>
+              </details>
+              <details class="style-menu shape-menu" id="center-menu">
+                <summary>
+                  <span class="summary-icon" id="center-icon" aria-hidden="true"></span
+                  ><span class="summary-text"
+                    ><span class="menu-label">Centros de esquina</span
+                    ><span class="menu-value" id="center-name">Cuadrados</span></span
+                  ><span class="menu-count" id="center-count">3 / 7</span
+                  ><svg class="menu-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.3" />
+                  </svg>
+                </summary>
+                <div
+                  id="center-options"
+                  class="shape-options"
+                  role="group"
+                  aria-label="Centros de esquina"
+                ></div>
+                <p class="center-note">Cambia la esquina para ver más centros.</p>
+              </details>
+            </div>
+          </section>
+          <section class="control-section">
+            <div class="section-heading">
+              <h2>Apariencia</h2>
+              <span class="section-no">03</span>
+            </div>
+            <div class="three-cols">
+              <div>
+                <label class="small-label" for="pick-foreground">Código</label>
+                <div class="color-box">
+                  <input type="hidden" id="foreground" value="#000000" /><button
+                    type="button"
+                    id="pick-foreground"
+                    class="color-trigger"
+                    data-picker="foreground"
+                    aria-label="Elegir color: Código"
+                    aria-haspopup="dialog"
+                    aria-controls="color-picker"
+                    aria-expanded="false"
+                    style="--picked: #000000"
+                  >
+                    <span class="color-chip" aria-hidden="true"></span
+                    ><output id="foreground-hex" for="foreground">#000000</output>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="small-label" for="pick-eye-color">Esquinas</label>
+                <div class="color-box">
+                  <input type="hidden" id="eye-color" value="#000000" /><button
+                    type="button"
+                    id="pick-eye-color"
+                    class="color-trigger"
+                    data-picker="eye-color"
+                    aria-label="Elegir color: Esquinas"
+                    aria-haspopup="dialog"
+                    aria-controls="color-picker"
+                    aria-expanded="false"
+                    style="--picked: #000000"
+                  >
+                    <span class="color-chip" aria-hidden="true"></span
+                    ><output id="eye-color-hex" for="eye-color">#000000</output>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="small-label" for="pick-background">Fondo</label>
+                <div class="color-box">
+                  <input type="hidden" id="background" value="#ffffff" /><button
+                    type="button"
+                    id="pick-background"
+                    class="color-trigger"
+                    data-picker="background"
+                    aria-label="Elegir color: Fondo"
+                    aria-haspopup="dialog"
+                    aria-controls="color-picker"
+                    aria-expanded="false"
+                    style="--picked: #ffffff"
+                  >
+                    <span class="color-chip" aria-hidden="true"></span
+                    ><output id="background-hex" for="background">#FFFFFF</output>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="palette">
+              <span class="palette-label">Paleta</span
+              ><button
+                class="swatch"
+                type="button"
+                data-color="#000000"
+                style="--swatch: #000"
+                aria-label="Negro"
+                aria-pressed="true"
+              ></button
+              ><button
+                class="swatch"
+                type="button"
+                data-color="#123ca3"
+                style="--swatch: #123ca3"
+                aria-label="Azul Morphiq"
+                aria-pressed="false"
+              ></button
+              ><button
+                class="swatch"
+                type="button"
+                data-color="#08254c"
+                style="--swatch: #08254c"
+                aria-label="Azul profundo"
+                aria-pressed="false"
+              ></button
+              ><button
+                class="swatch"
+                type="button"
+                data-color="#492276"
+                style="--swatch: #492276"
+                aria-label="Violeta"
+                aria-pressed="false"
+              ></button>
+            </div>
+            <div class="control-row">
+              <div class="slider-head">
+                <label for="margin" class="field-label">Margen</label
+                ><output id="margin-value" for="margin">1 módulo</output>
+              </div>
+              <input class="range" id="margin" type="range" min="0" max="12" step="1" value="1" />
+            </div>
+            <div class="control-row">
+              <span class="field-label" id="ecc-label">Resistencia</span>
+              <div class="ecc-controls" role="radiogroup" aria-labelledby="ecc-label">
+                <label class="ecc-option"
+                  ><input type="radio" name="ecc" value="M" checked /><span class="ecc-body"
+                    >Simple<b>M / 15%</b></span
+                  ></label
+                ><label class="ecc-option"
+                  ><input type="radio" name="ecc" value="H" /><span class="ecc-body"
+                    >Alta · doble<b>H / 30%</b></span
+                  ></label
+                >
+              </div>
+              <p class="ecc-lock" id="ecc-note"></p>
+            </div>
+          </section>
+          <section class="control-section">
+            <div class="section-heading">
+              <h2>Imagen central</h2>
+              <span class="section-no">04</span>
+            </div>
+            <label class="switch-label"
+              ><input id="logo-enabled" type="checkbox" />Incluir imagen</label
+            >
+            <div class="upload-row">
+              <input
+                id="logo-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="visually-hidden"
+              /><button id="upload" class="upload-button" type="button">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 16V4m-4 4 4-4 4 4M4 15v5h16v-5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+                >Subir imagen</button
+              ><button id="use-brand" class="brand-button" type="button">Usar Morphiq</button>
+            </div>
+            <div class="image-settings" id="image-settings">
+              <div class="image-file">
+                <span id="image-name"></span
+                ><button id="remove-logo" class="remove-image" type="button">Quitar</button>
+              </div>
+              <div class="image-framing">
+                <div
+                  class="image-editor"
+                  id="image-editor"
+                  tabindex="0"
+                  role="application"
+                  aria-label="Encuadre de imagen. Arrastra o usa las flechas para moverla."
+                ></div>
+                <div class="framing-actions">
+                  <label for="image-fit" class="select-label">Ajuste de imagen</label
+                  ><select id="image-fit">
+                    <option value="auto">Automático</option>
+                    <option value="contain">Imagen completa</option>
+                    <option value="cover">Rellenar el área</option></select
+                  ><button type="button" class="brand-button" id="image-recenter">
+                    Centrar y ajustar
+                  </button>
+                  <p class="framing-hint">Arrastra la imagen para encuadrarla.</p>
+                </div>
+              </div>
+              <div class="control-row">
+                <div class="slider-head">
+                  <label for="logo-size" class="field-label">Área dentro del QR</label
+                  ><output id="logo-size-value" for="logo-size">24%</output>
+                </div>
+                <input
+                  class="range"
+                  id="logo-size"
+                  type="range"
+                  min="8"
+                  max="30"
+                  step="1"
+                  value="24"
+                />
+              </div>
+              <div class="control-row">
+                <div class="slider-head">
+                  <label for="image-zoom" class="field-label">Zoom de la imagen</label
+                  ><output id="image-zoom-value" for="image-zoom">100%</output>
+                </div>
+                <input
+                  class="range"
+                  id="image-zoom"
+                  type="range"
+                  min="50"
+                  max="400"
+                  step="1"
+                  value="100"
+                />
+              </div>
+              <div class="two-cols">
+                <div class="control-row">
+                  <div class="slider-head">
+                    <label for="image-x" class="field-label">Posición X</label
+                    ><output id="image-x-value" for="image-x">0</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="image-x"
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="1"
+                    value="0"
+                  />
+                </div>
+                <div class="control-row">
+                  <div class="slider-head">
+                    <label for="image-y" class="field-label">Posición Y</label
+                    ><output id="image-y-value" for="image-y">0</output>
+                  </div>
+                  <input
+                    class="range"
+                    id="image-y"
+                    type="range"
+                    min="-100"
+                    max="100"
+                    step="1"
+                    value="0"
+                  />
+                </div>
+              </div>
+              <div class="control-row">
+                <span class="field-label" id="blend-label">Integración</span>
+                <div class="segmented" role="group" aria-labelledby="blend-label">
+                  <button data-blend="integrated" aria-pressed="true" type="button">
+                    Integrada</button
+                  ><button data-blend="weave" aria-pressed="false" type="button">Trama QR</button>
+                </div>
+              </div>
+              <div class="control-row">
+                <span class="field-label" id="frame-label">Forma del área</span>
+                <div class="segmented" role="group" aria-labelledby="frame-label">
+                  <button data-frame="square" aria-pressed="true" type="button">Recta</button
+                  ><button data-frame="rounded" aria-pressed="false" type="button">Suave</button
+                  ><button data-frame="circle" aria-pressed="false" type="button">Circular</button>
+                </div>
+              </div>
+              <div class="control-row">
+                <label class="switch-label"
+                  ><input id="logo-base-auto" type="checkbox" checked />Usar el fondo del QR</label
+                >
+                <div id="image-base-custom" hidden>
+                  <label class="small-label" for="pick-logo-background">Color de fondo</label>
+                  <div class="color-box">
+                    <input type="hidden" id="logo-background" value="#ffffff" /><button
+                      type="button"
+                      id="pick-logo-background"
+                      class="color-trigger"
+                      data-picker="logo-background"
+                      aria-label="Elegir color: fondo de la imagen"
+                      aria-haspopup="dialog"
+                      aria-controls="color-picker"
+                      aria-expanded="false"
+                      style="--picked: #ffffff"
+                    >
+                      <span class="color-chip" aria-hidden="true"></span
+                      ><output id="logo-background-hex" for="logo-background">#FFFFFF</output>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="control-section">
+            <div class="section-heading">
+              <h2>Exportación</h2>
+              <span class="section-no">05</span>
+            </div>
+            <div class="slider-head">
+              <label for="resolution" class="field-label">Resolución de imagen</label
+              ><output id="resolution-value" for="resolution">1024 px</output>
+            </div>
+            <input class="range" id="resolution" type="range" min="0" max="3" step="1" value="1" />
+            <div class="two-cols control-row">
+              <div>
+                <label class="select-label" for="pdf-size">Tamaño de PDF</label
+                ><select id="pdf-size">
+                  <option value="30">30 × 30 mm</option>
+                  <option value="50" selected>50 × 50 mm</option>
+                  <option value="80">80 × 80 mm</option>
+                  <option value="100">100 × 100 mm</option>
+                  <option value="150">150 × 150 mm</option>
+                </select>
+              </div>
+              <div>
+                <label class="select-label" for="filename">Nombre del archivo</label
+                ><input
+                  type="text"
+                  id="filename"
+                  value="morphiq-qr"
+                  maxlength="70"
+                  spellcheck="false"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+        <aside class="preview-column" aria-label="Vista previa">
+          <div class="preview-toolbar">
+            <span class="preview-label">VISTA PREVIA</span
+            ><span class="preview-status" id="preview-status"
+              ><span class="status-dot" aria-hidden="true"></span
+              ><span id="preview-state">Listo</span></span
+            >
+          </div>
+          <div class="qr-stage">
+            <div class="qr-paper" id="qr-preview" role="img" aria-label="Código QR generado"></div>
+          </div>
+          <div class="qr-metadata">
+            <span id="stat-size">— px</span><span id="stat-grid">— módulos</span
+            ><span id="stat-ecc">M</span>
+          </div>
+          <p class="encoded-destination" id="destination">https://morphiq.com.mx</p>
+          <p class="status-message" id="status" role="status" aria-live="polite"></p>
+          <div class="export-formats" role="group" aria-label="Formato de descarga">
+            <button type="button" class="export-format" data-format="png" aria-pressed="true">
+              PNG</button
+            ><button type="button" class="export-format" data-format="svg" aria-pressed="false">
+              SVG</button
+            ><button type="button" class="export-format" data-format="pdf" aria-pressed="false">
+              PDF</button
+            ><button type="button" class="export-format" data-format="jpg" aria-pressed="false">
+              JPG</button
+            ><button type="button" class="export-format" data-format="webp" aria-pressed="false">
+              WEBP
+            </button>
+          </div>
+          <button type="button" class="download" id="download">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            ><span id="download-label">Descargar PNG</span>
+          </button>
+          <p class="small-note" id="export-note"></p>
+          <button type="button" class="check-button" id="check-qr">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <path
+                d="m8 12 3 3 5-6M5 3H3v5m16-5h2v5M3 16v5h5m13-5v5h-5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            ><span id="check-label">Comprobar QR</span>
+          </button>
+          <div class="check-results" id="check-results" hidden>
+            <p class="check-summary" id="check-summary" role="status" aria-live="polite"></p>
+            <ol class="check-trials" id="check-trials">
+              <li id="check-step-0" data-state="waiting">
+                <span>Imagen original</span><span class="trial-state">Pendiente</span>
+              </li>
+              <li id="check-step-1" data-state="waiting">
+                <span>Tamaño reducido</span><span class="trial-state">Pendiente</span>
+              </li>
+              <li id="check-step-2" data-state="waiting">
+                <span>Rotación de 3°</span><span class="trial-state">Pendiente</span>
+              </li>
+              <li id="check-step-3" data-state="waiting">
+                <span>Compresión y desenfoque</span><span class="trial-state">Pendiente</span>
+              </li>
+            </ol>
+            <p class="check-advice" id="check-advice"></p>
+            <p class="check-destination" id="check-destination"></p>
+          </div>
+        </aside>
+      </div>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div id="color-picker" class="color-picker" hidden>
+      <section class="picker-dialog" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+        <div class="picker-heading">
+          <h3 id="picker-title">Seleccionar color</h3>
+          <button id="picker-close" class="picker-close" type="button" aria-label="Cerrar selector">
+            ×
+          </button>
+        </div>
+        <div
+          id="picker-square"
+          class="picker-square"
+          tabindex="0"
+          role="slider"
+          aria-label="Saturación y brillo"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          aria-describedby="picker-instructions"
+        >
+          <span id="picker-cursor" class="picker-cursor" aria-hidden="true"></span>
+        </div>
+        <p id="picker-instructions" class="visually-hidden">
+          Arrastra el círculo para elegir el color. Con el teclado, izquierda y derecha cambian
+          saturación; arriba y abajo cambian brillo.
+        </p>
+        <div class="picker-hue-head">
+          <label for="picker-hue">Matiz</label><output id="picker-hue-value">0°</output>
+        </div>
+        <input
+          id="picker-hue"
+          class="picker-hue"
+          type="range"
+          min="0"
+          max="360"
+          step="1"
+          value="0"
+        />
+        <div class="picker-values">
+          <span id="picker-preview" class="picker-preview" aria-hidden="true"></span>
+          <div>
+            <label for="picker-hex">HEX</label
+            ><input
+              id="picker-hex"
+              type="text"
+              value="#000000"
+              spellcheck="false"
+              autocomplete="off"
+              maxlength="7"
+              aria-describedby="picker-error"
+            />
+          </div>
+        </div>
+        <div class="picker-rgb">
+          <div>
+            <label for="picker-r">R</label
+            ><input
+              id="picker-r"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="255"
+              step="1"
+              value="0"
+            />
+          </div>
+          <div>
+            <label for="picker-g">G</label
+            ><input
+              id="picker-g"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="255"
+              step="1"
+              value="0"
+            />
+          </div>
+          <div>
+            <label for="picker-b">B</label
+            ><input
+              id="picker-b"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="255"
+              step="1"
+              value="0"
+            />
+          </div>
+        </div>
+        <div class="picker-presets" role="group" aria-label="Colores rápidos">
+          <button
+            type="button"
+            data-picker-preset="#000000"
+            style="--picked: #000"
+            aria-label="Negro"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#ffffff"
+            style="--picked: #fff"
+            aria-label="Blanco"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#123ca3"
+            style="--picked: #123ca3"
+            aria-label="Azul Morphiq"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#08254c"
+            style="--picked: #08254c"
+            aria-label="Azul profundo"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#492276"
+            style="--picked: #492276"
+            aria-label="Violeta"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#a32246"
+            style="--picked: #a32246"
+            aria-label="Carmín"
+          ></button
+          ><button
+            type="button"
+            data-picker-preset="#12654e"
+            style="--picked: #12654e"
+            aria-label="Verde"
+          ></button>
+        </div>
+        <p id="picker-error" class="picker-error" role="status" aria-live="polite"></p>
+        <button id="picker-done" class="picker-done" type="button">Listo</button>
+      </section>
+    </div>
+
+    <script src="/vendor/glyphos-field.js" defer></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
