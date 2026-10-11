@@ -5,6 +5,8 @@ import { loadImage, readFile } from '../image/image-loader.js';
 import { qrImageFile, shareQrFile } from '../export/share.js';
 import { namespaceSvg } from '../ui/svg.js';
 import { saveFile } from '../utils/files.js';
+import { createCameraAccess } from './camera-access.js';
+import { initPermissionGuide } from './permission-guide.js';
 
 export function createScanner() {
   const el = (id) => document.getElementById(id),
@@ -19,7 +21,18 @@ export function createScanner() {
     imageFile = null,
     torch = false,
     starting = false,
+    active = false,
+    wanted = false,
     timer;
+  const permissionDialog = el('camera-permissions'),
+    access = createCameraAccess((state) => {
+      updatePermission();
+      if (state === 'denied') {
+        const wasActive = stream || starting;
+        stop();
+        if (active && !found && wasActive) permissionNeeded();
+      } else if (state === 'granted') maybeStart();
+    });
   const status = (text) => {
     el('scanner-status').textContent = text;
     el('scan-result-status').textContent = found ? text : '';
@@ -38,6 +51,67 @@ export function createScanner() {
     el('scanner-torch').setAttribute('aria-pressed', 'false');
     torch = false;
     starting = false;
+  }
+  function updatePermission() {
+    el('camera-auto-start').checked = access.automatic;
+    el('scanner-permissions').dataset.state = access.state;
+    el('camera-permission-state').textContent =
+      access.state === 'granted'
+        ? 'Permiso de cámara concedido.'
+        : access.state === 'denied'
+          ? 'La cámara está bloqueada. Cambia el permiso en los ajustes.'
+          : access.state === 'prompt'
+            ? 'El navegador necesita tu permiso para usar la cámara.'
+            : 'Tu navegador gestiona el permiso al abrir la cámara.';
+  }
+  function permissionNeeded() {
+    status('Permite la cámara para leer. Consulta «Permisos» si te la pide cada vez.');
+  }
+  async function maybeStart({ allowPrompt = false } = {}) {
+    if (
+      !active ||
+      !wanted ||
+      found ||
+      stream ||
+      starting ||
+      permissionDialog.open ||
+      document.hidden
+    )
+      return;
+    const token = session,
+      state = await access.refresh();
+    updatePermission();
+    if (
+      token !== session ||
+      !active ||
+      !wanted ||
+      found ||
+      stream ||
+      starting ||
+      permissionDialog.open ||
+      document.hidden
+    )
+      return;
+    if (
+      state === 'granted' ||
+      (state === 'unknown' && access.used && !access.blocked) ||
+      (allowPrompt && state !== 'denied' && !access.blocked)
+    )
+      start();
+    else permissionNeeded();
+  }
+  function enter() {
+    if (active) return;
+    active = true;
+    wanted = access.automatic && !found;
+    if (wanted) maybeStart({ allowPrompt: true });
+    else if (!found) status('Inicio automático desactivado. Usa «Activar cámara» cuando quieras.');
+  }
+  function leave() {
+    active = false;
+    wanted = false;
+    stop();
+    permissionDialog.close();
   }
   function clearResult() {
     resultRevision++;
@@ -139,6 +213,7 @@ export function createScanner() {
           photo.src = canvas.toDataURL('image/jpeg', 0.9);
           photo.hidden = false;
           video.hidden = true;
+          wanted = false;
           stop();
           display(result, canvas.width, canvas.height);
           return;
@@ -150,20 +225,26 @@ export function createScanner() {
     if (token === session && stream) timer = setTimeout(() => loop(token), 140);
   }
   async function start() {
-    if (starting) return;
+    if (starting || !active || document.hidden) return;
     stop();
     clearResult();
+    wanted = true;
     starting = true;
     const token = ++session;
     el('scanner-start').disabled = true;
+    el('scanner-start').hidden = true;
+    el('scanner-stop').hidden = false;
+    el('scanner-stop').textContent = 'Cancelar';
     video.hidden = false;
     photo.hidden = true;
     if (!navigator.mediaDevices?.getUserMedia) {
+      wanted = false;
       status('La cámara necesita HTTPS y un navegador compatible. Puedes leer una imagen.');
       stop();
       return;
     }
     status('Solicitando cámara…');
+    let acquired = false;
     try {
       const next = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: facing }, width: { ideal: 1280 } },
@@ -174,23 +255,39 @@ export function createScanner() {
         return;
       }
       stream = next;
+      acquired = true;
       video.srcObject = next;
       await video.play();
       if (token !== session) return;
+      access.recordSuccess();
+      updatePermission();
       el('scanner-stop').hidden = false;
+      el('scanner-stop').textContent = 'Detener';
       el('scanner-start').hidden = true;
       el('scanner-torch').hidden = !next.getVideoTracks()[0]?.getCapabilities?.().torch;
+      next.getVideoTracks()[0]?.addEventListener('ended', () => {
+        if (token !== session) return;
+        wanted = false;
+        stop();
+        status('La cámara se desconectó. Puedes volver a activarla o leer una imagen.');
+      });
       status('Buscando QR…');
       loop(token);
     } catch (error) {
       if (token === session) {
         stop();
+        if (error.name === 'NotAllowedError' && !acquired) access.recordDenial();
+        else wanted = false;
         status(
           error.name === 'NotAllowedError'
-            ? 'Permite la cámara en tu navegador o sube una imagen.'
+            ? acquired
+              ? 'La cámara necesita un toque para iniciar. Pulsa «Activar cámara».'
+              : 'Permite la cámara en tu navegador. Consulta «Permisos» o lee una imagen.'
             : error.name === 'NotFoundError'
               ? 'No se encontró una cámara. Puedes subir una imagen.'
-              : 'No se pudo iniciar la cámara. Intenta de nuevo.',
+              : error.name === 'NotReadableError'
+                ? 'La cámara está ocupada o no está disponible. Cierra la otra app e intenta de nuevo.'
+                : 'No se pudo iniciar la cámara. Intenta de nuevo.',
         );
       }
     } finally {
@@ -202,6 +299,7 @@ export function createScanner() {
   }
   el('scanner-start').addEventListener('click', start);
   el('scanner-stop').addEventListener('click', () => {
+    wanted = false;
     stop();
     status('Cámara detenida.');
   });
@@ -228,6 +326,7 @@ export function createScanner() {
   el('scanner-file').addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    wanted = false;
     stop();
     clearResult();
     photo.hidden = true;
@@ -301,9 +400,34 @@ export function createScanner() {
     if (document.visibilityState === 'hidden') {
       const wasActive = stream || starting;
       stop();
-      if (wasActive && !found) status('Cámara pausada. Actívala para seguir leyendo.');
-    }
+      if (wasActive && !found) status('Cámara pausada mientras la app está en segundo plano.');
+    } else maybeStart();
   });
   window.addEventListener('pagehide', stop);
-  return { start, stop };
+  window.addEventListener('pageshow', () => maybeStart());
+  el('scanner-permissions').addEventListener('click', () => {
+    const wasActive = stream || starting;
+    stop();
+    if (wasActive && !found) status('Cámara pausada mientras revisas los permisos.');
+    updatePermission();
+    permissionDialog.showModal();
+    access.refresh().then(updatePermission);
+  });
+  el('camera-permissions-close').addEventListener('click', () => permissionDialog.close());
+  permissionDialog.addEventListener('close', () => maybeStart());
+  el('camera-permissions-try').addEventListener('click', () => {
+    permissionDialog.close();
+    start();
+  });
+  el('camera-auto-start').addEventListener('change', (event) => {
+    access.setAutomatic(event.target.checked);
+    wanted = event.target.checked && !found;
+    if (!wanted) {
+      stop();
+      if (!found) status('Inicio automático desactivado. Usa «Activar cámara» cuando quieras.');
+    }
+  });
+  initPermissionGuide(el);
+  updatePermission();
+  return { start, stop, enter, leave };
 }

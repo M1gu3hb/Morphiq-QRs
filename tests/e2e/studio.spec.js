@@ -20,7 +20,9 @@ test('fullscreen camera marks and reconstructs the QR, then releases its video t
     .toBuffer();
   const source = 'data:image/png;base64,' + png.toString('base64');
   await page.addInitScript((data) => {
+    window.testCameraCalls = 0;
     navigator.mediaDevices.getUserMedia = async () => {
+      window.testCameraCalls++;
       const image = new Image();
       image.src = data;
       await image.decode();
@@ -38,16 +40,24 @@ test('fullscreen camera marks and reconstructs the QR, then releases its video t
   await page.goto('/?view=scan');
   const stage = await page.locator('#camera-stage').boundingBox();
   expect(stage).toEqual({ x: 0, y: 0, width: 1440, height: 1000 });
-  expect(await page.evaluate(() => window.testCameraTrack)).toBeUndefined();
-  await page.locator('#scanner-start').click();
   await expect(page.locator('#scan-content')).toHaveText(url, { timeout: 20_000 });
   await expect(page.locator('#scanner-overlay')).toHaveClass('detected');
   await expect(page.locator('#scan-rebuilt svg')).toBeVisible();
   expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('ended');
+  await page.evaluate(async () => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  });
+  await expect(page.locator('#scan-content')).toHaveText(url);
+  expect(await page.evaluate(() => window.testCameraCalls)).toBe(1);
   await page.locator('#nav-studio').click();
   expect(await page.evaluate(() => window.testCameraTrack.readyState)).toBe('ended');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#nav-scan').click();
+  expect(await page.evaluate(() => window.testCameraCalls)).toBe(1);
   expect(await page.locator('#camera-stage').boundingBox()).toEqual({
     x: 0,
     y: 0,

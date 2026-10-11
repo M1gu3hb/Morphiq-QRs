@@ -31,7 +31,8 @@ function view(name) {
   el('reset').hidden = scan;
   el('nav-studio').setAttribute('aria-pressed', String(!scan));
   el('nav-scan').setAttribute('aria-pressed', String(scan));
-  if (!scan) scanner.stop();
+  if (scan) scanner.enter();
+  else scanner.leave();
   document.dispatchEvent(new Event('studio:view'));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

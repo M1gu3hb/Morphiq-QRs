@@ -945,22 +945,31 @@ morphiq.com.mx</textarea>
               <i></i><span>Coloca el QR dentro de la cámara</span>
             </div>
           </div>
-          <div class="camera-controls">
-            <button id="scanner-start" type="button" class="tool-button">Activar cámara</button
-            ><button id="scanner-stop" type="button" class="tool-button" hidden>Detener</button
-            ><button id="scanner-switch" type="button" class="tool-button">Cambiar cámara</button
-            ><button id="scanner-torch" type="button" class="tool-button" hidden>Linterna</button
-            ><label class="tool-button" for="scanner-file"
-              >Leer imagen<input
-                id="scanner-file"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                class="visually-hidden"
-            /></label>
+          <div class="camera-toolbar">
+            <div class="camera-controls">
+              <button id="scanner-start" type="button" class="tool-button">Activar cámara</button
+              ><button id="scanner-stop" type="button" class="tool-button" hidden>Detener</button
+              ><button id="scanner-switch" type="button" class="tool-button">Cambiar cámara</button
+              ><button id="scanner-torch" type="button" class="tool-button" hidden>Linterna</button
+              ><label class="tool-button" for="scanner-file"
+                >Leer imagen<input
+                  id="scanner-file"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  class="visually-hidden" /></label
+              ><button
+                id="scanner-permissions"
+                type="button"
+                class="tool-button"
+                aria-haspopup="dialog"
+              >
+                Permisos
+              </button>
+            </div>
+            <p id="scanner-status" role="status" aria-live="polite">
+              Cámara e imágenes se procesan en este dispositivo.
+            </p>
           </div>
-          <p id="scanner-status" role="status" aria-live="polite">
-            Cámara e imágenes se procesan en este dispositivo.
-          </p>
         </section>
         <aside class="scan-result" id="scan-result" aria-labelledby="scan-kind" hidden>
           <span class="eyebrow">QR DETECTADO</span>
@@ -986,6 +995,39 @@ morphiq.com.mx</textarea>
         </aside>
       </div>
     </main>
+    <dialog
+      id="camera-permissions"
+      class="camera-permissions"
+      aria-labelledby="camera-permissions-title"
+    >
+      <div class="dialog-head">
+        <h2 id="camera-permissions-title">Permisos de cámara</h2>
+        <button id="camera-permissions-close" type="button" class="tool-button">Cerrar</button>
+      </div>
+      <p id="camera-permission-state" role="status"></p>
+      <label class="camera-auto-start" for="camera-auto-start"
+        ><input id="camera-auto-start" type="checkbox" checked />Abrir cámara al entrar al
+        lector</label
+      >
+      <label class="select-label" for="camera-guide-platform">Tu dispositivo</label>
+      <select id="camera-guide-platform">
+        <option value="android">Android</option>
+        <option value="ios">iPhone / iPad</option>
+        <option value="desktop">Computadora</option>
+      </select>
+      <ol id="camera-guide-steps"></ol>
+      <p id="camera-guide-note" class="small-note"></p>
+      <p class="small-note">
+        El permiso lo guarda tu navegador. La cámara se apaga al salir del lector, al detectar un QR
+        o mientras la app está en segundo plano.
+      </p>
+      <div class="camera-permission-actions">
+        <button id="camera-permissions-try" type="button" class="tool-button">Activar cámara</button
+        ><a id="camera-guide-help" target="_blank" rel="noopener noreferrer"
+          >Ayuda del navegador ↗</a
+        >
+      </div>
+    </dialog>
     <footer>
       Created by
       <a href="https://morphiq.com.mx" target="_blank" rel="noopener noreferrer">Morphiq</a>

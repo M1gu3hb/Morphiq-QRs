@@ -27,6 +27,63 @@
 .share-status:empty {
   display: none;
 }
+.camera-permissions {
+  width: min(540px, calc(100% - 32px));
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: auto;
+  padding: 24px;
+  border: 1px solid #556b8c;
+  border-radius: 12px;
+  background: #0b121e;
+  color: #edf4ff;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.camera-permissions::backdrop {
+  background: #000b;
+}
+.camera-permissions h2 {
+  font-size: 20px;
+}
+.camera-permissions > p {
+  margin: 16px 0;
+}
+.camera-permissions ol {
+  padding-left: 22px;
+}
+.camera-permissions li {
+  margin: 14px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.camera-auto-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 18px;
+}
+.camera-auto-start input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: #428bff;
+}
+.camera-permission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+.camera-permission-actions a {
+  color: #a7caff;
+  font-size: 13px;
+}
+#scanner-view #scanner-permissions[data-state='denied'] {
+  border-color: #eab46c;
+  color: #ffe1b8;
+}
 body.scanning {
   overflow: hidden;
 }
@@ -115,12 +172,16 @@ body.scanning #toast {
   left: 8%;
   right: 8%;
 }
-#scanner-view .camera-controls {
+.camera-toolbar {
   position: absolute;
   z-index: 10;
-  bottom: max(70px, calc(56px + env(safe-area-inset-bottom)));
+  bottom: max(20px, env(safe-area-inset-bottom));
   left: max(18px, env(safe-area-inset-left));
   right: max(18px, env(safe-area-inset-right));
+  display: grid;
+  gap: 12px;
+}
+#scanner-view .camera-controls {
   margin: 0;
   justify-content: center;
   gap: 8px;
@@ -134,19 +195,13 @@ body.scanning #toast {
   backdrop-filter: blur(16px);
 }
 #scanner-status {
-  position: absolute;
-  bottom: max(20px, env(safe-area-inset-bottom));
-  left: 20px;
-  right: 20px;
   margin: 0;
-  z-index: 10;
   color: #ecf2fc;
   text-align: center;
   text-shadow: 0 1px 6px #000;
   pointer-events: none;
 }
-#scanner-view.has-result .camera-controls,
-#scanner-view.has-result #scanner-status {
+#scanner-view.has-result .camera-toolbar {
   display: none;
 }
 #scanner-view.has-result .camera-stage::after {
@@ -290,6 +345,14 @@ body.scanning #toast {
   }
 }
 @media (max-height: 540px) and (min-width: 600px) {
+  #scanner-view .scan-guide {
+    top: 44%;
+    width: min(36dvh, 180px);
+    height: min(36dvh, 180px);
+  }
+  #scanner-view .scan-guide span {
+    bottom: 12px;
+  }
   body.scanning > header {
     min-height: 0;
     padding: 10px 24px 20px;
@@ -323,6 +386,14 @@ body.scanning #toast {
   }
   #scan-result-status {
     clear: both;
+  }
+}
+@media (max-height: 680px) and (max-width: 599px) {
+  #scanner-view .scan-guide {
+    top: 40%;
+  }
+  #scanner-view .scan-guide span {
+    bottom: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
