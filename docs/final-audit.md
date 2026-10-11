@@ -1,4 +1,4 @@
-# Revisión final · Morphiq QR 2.2.1
+# Revisión final · Morphiq QR 2.2.2
 
 Fecha: 11 de octubre de 2026. Revisión del código, lectura real de archivos generados, pruebas automatizadas del navegador y comprobación visual de escritorio y móvil.
 
@@ -7,6 +7,8 @@ Fecha: 11 de octubre de 2026. Revisión del código, lectura real de archivos ge
 - Silueta PNG: al cargarla o reactivarla se establece margen cero y se desactiva el marco. Una imagen central corriente conserva el margen elegido. Los ajustes posteriores guardados en un proyecto se restauran sin sobrescribirlos.
 - Cámara: ocupa todo el viewport. La región decodificada coincide con el recorte visible; el resultado congela el cuadro y detiene las pistas, temporizadores y linterna. Las sesiones obsoletas liberan cámaras recibidas después de salir del lector.
 - Revisión adicional de cámara/PWA: arranque al entrar al lector y reanudación en primer plano con permiso; cancelación de solicitudes pendientes; guía para conservar permisos según dispositivo y preferencia de arranque. No vuelve a pedir permiso automáticamente después de un rechazo. Una parada manual, un QR detectado o una imagen elegida conservan su estado. Los permisos revocados detienen la cámara; una desconexión y una cámara ocupada muestran recuperación sin bucles de solicitud.
+- Recuperación móvil 2.2.2: se reprodujo el bloqueo causado por una consulta de permisos sin respuesta (ninguna llamada a `getUserMedia` antes de la corrección). La consulta ahora tiene un límite de espera y es informativa. Un toque llega a la solicitud en el mismo ciclo de interacción; un permiso restablecido limpia el bloqueo guardado. Los ajustes de cámara incompatibles se reintentan con video simple, sin audio, y las solicitudes o reproducciones que no responden ofrecen reintento sin perder el control del lector. Las pistas tardías de sesiones canceladas se liberan.
+- La guía distingue permiso del sitio, acceso del navegador y permiso del sistema. Explica el caso de una PWA con solo Notificaciones en los ajustes Android. Ofrece abrir/copiar el lector, captura mediante cámara del sistema y soporte; en navegadores con `HTMLUserMediaElement`, incorpora autorización nativa y recibe su stream sin duplicar solicitudes. El resto conserva la ruta estándar.
 - Los controles y el estado del lector comparten una barra adaptable para evitar superposiciones en pantallas estrechas y horizontales. La guía es accesible por teclado, se puede cerrar con Escape y conserva el foco y las preferencias.
 - Resultado: el QR reconstruido contiene la carga original completa, independiente de la descripción del contenido. Conserva escapes Wi-Fi, asuntos y cuerpos de correo, números, vCard y calendario. Los enlaces se abren únicamente con una acción del usuario.
 - Compartir: el generador y el lector preparan un PNG. Web Share recibe solo el archivo, sin mensaje, título ni URL. Se conserva el gesto necesario para abrir el menú del sistema. Cancelar no abre ni descarga nada; sin compartir archivos, se descarga el PNG. El generador exige las cuatro lecturas del diseño actual.
@@ -31,7 +33,7 @@ Fecha: 11 de octubre de 2026. Revisión del código, lectura real de archivos ge
 | Móvil      | Anchos de 320/390 px y horizontal 844×390, sin desbordamiento; selector propio de colores, controles de resultado y vista previa                                                     |
 | PWA        | Arranque en lector, caché, lectura de imágenes, generación y comprobación sin conexión tras la primera carga                                                                         |
 
-La batería contiene **12 pruebas unitarias, 17 de integración y 23 de navegador**. Las pruebas del contrato nativo de compartir sustituyen el menú del sistema por un capturador: se verifica el archivo y su lectura, sin enviar mensajes reales. Las pruebas PDF necesitan Poppler.
+La batería contiene **12 pruebas unitarias, 17 de integración y 35 de navegador**. Las pruebas del contrato nativo de compartir sustituyen el menú del sistema por un capturador: se verifica el archivo y su lectura, sin enviar mensajes reales. Las pruebas PDF necesitan Poppler.
 
 ## Límites de la revisión
 

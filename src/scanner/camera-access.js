@@ -25,7 +25,7 @@ export function createCameraAccess(onChange) {
   function changed() {
     state = permission.state;
     if (state === 'denied') save({ blocked: true });
-    if (state === 'granted') save({ blocked: false });
+    if (state === 'granted' || state === 'prompt') save({ blocked: false });
     onChange(state);
   }
   async function refresh() {
@@ -34,24 +34,34 @@ export function createCameraAccess(onChange) {
         try {
           const next = await navigator.permissions.query({ name: 'camera' });
           if (next !== permission) {
-            permission?.removeEventListener('change', changed);
+            permission?.removeEventListener?.('change', changed);
             permission = next;
-            permission.addEventListener('change', changed);
+            permission.addEventListener?.('change', changed);
           }
           state = permission.state;
           if (state === 'denied') save({ blocked: true });
-          if (state === 'granted') save({ blocked: false });
+          if (state === 'granted' || state === 'prompt') save({ blocked: false });
         } catch {
           // Some browsers do not support querying the camera permission.
           state = 'unknown';
         }
         return state;
-      })();
+      })().finally(() => {
+        pending = null;
+      });
     }
+    let timeout;
     try {
-      return await pending;
+      // PermissionStatus is advisory. Some mobile shells leave query() unresolved;
+      // it must never prevent getUserMedia() or an explicit user-activated retry.
+      return await Promise.race([
+        pending,
+        new Promise((resolve) => {
+          timeout = setTimeout(() => resolve(state), 400);
+        }),
+      ]);
     } finally {
-      pending = null;
+      clearTimeout(timeout);
     }
   }
   return {

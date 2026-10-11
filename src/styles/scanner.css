@@ -80,6 +80,61 @@
   color: #a7caff;
   font-size: 13px;
 }
+.camera-recovery {
+  width: min(540px, 100%);
+  max-height: 40dvh;
+  margin: 0 auto;
+  padding: 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #627da9;
+  border-radius: 12px;
+  background: #0b121e;
+  color: #edf4ff;
+}
+.camera-recovery h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.camera-recovery p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.camera-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.camera-recovery-actions a {
+  text-decoration: none;
+}
+.camera-recovery-actions > button,
+.camera-recovery-actions > a {
+  flex: 1 1 120px;
+  text-align: center;
+  white-space: normal;
+}
+.camera-diagnostics {
+  margin-top: 20px;
+  font-size: 13px;
+}
+.camera-diagnostics p {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: #c8d6e9;
+}
+/* Native capability controls need opaque, unobscured styling to stay enabled. */
+.camera-native-control {
+  display: inline-block;
+  background-color: #142746;
+  color: #fff;
+  opacity: 1;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
 #scanner-view #scanner-permissions[data-state='denied'] {
   border-color: #eab46c;
   color: #ffe1b8;

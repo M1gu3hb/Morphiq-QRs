@@ -23,7 +23,7 @@ const projects = initProjects(studio);
 initAccordions();
 const scanner = createScanner();
 const el = (id) => document.getElementById(id);
-function view(name) {
+function view(name, options = {}) {
   const scan = name === 'scan';
   document.body.classList.toggle('scanning', scan);
   el('studio-view').hidden = scan;
@@ -31,13 +31,13 @@ function view(name) {
   el('reset').hidden = scan;
   el('nav-studio').setAttribute('aria-pressed', String(!scan));
   el('nav-scan').setAttribute('aria-pressed', String(scan));
-  if (scan) scanner.enter();
+  if (scan) scanner.enter(options);
   else scanner.leave();
   document.dispatchEvent(new Event('studio:view'));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 el('nav-studio').addEventListener('click', () => view('create'));
-el('nav-scan').addEventListener('click', () => view('scan'));
+el('nav-scan').addEventListener('click', () => view('scan', { userGesture: true }));
 const params = new URLSearchParams(location.search),
   installed =
     window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;

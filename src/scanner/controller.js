@@ -7,6 +7,7 @@ import { namespaceSvg } from '../ui/svg.js';
 import { saveFile } from '../utils/files.js';
 import { createCameraAccess } from './camera-access.js';
 import { initPermissionGuide } from './permission-guide.js';
+import { cameraEnvironment, cameraProblem, requestCamera } from './camera-environment.js';
 
 export function createScanner() {
   const el = (id) => document.getElementById(id),
@@ -23,7 +24,10 @@ export function createScanner() {
     starting = false,
     active = false,
     wanted = false,
-    timer;
+    timer,
+    requestTimer,
+    lastError = null;
+  const nativeControls = [];
   const permissionDialog = el('camera-permissions'),
     access = createCameraAccess((state) => {
       updatePermission();
@@ -40,12 +44,14 @@ export function createScanner() {
   function stop() {
     session++;
     clearTimeout(timer);
+    clearTimeout(requestTimer);
     stream?.getTracks().forEach((track) => track.stop());
     stream = null;
     video.srcObject = null;
     el('scanner-stop').hidden = true;
     el('scanner-start').hidden = false;
     el('scanner-start').disabled = false;
+    el('scanner-start').textContent = 'Activar cámara';
     el('scanner-torch').hidden = true;
     el('scanner-torch').textContent = 'Linterna';
     el('scanner-torch').setAttribute('aria-pressed', 'false');
@@ -63,9 +69,31 @@ export function createScanner() {
           : access.state === 'prompt'
             ? 'El navegador necesita tu permiso para usar la cámara.'
             : 'Tu navegador gestiona el permiso al abrir la cámara.';
+    const environment = cameraEnvironment();
+    el('camera-diagnostics').textContent = [
+      `${environment.installed ? 'App instalada' : 'Página web'} · ${environment.browser}`,
+      `Conexión segura: ${environment.secure ? 'sí' : 'no'}`,
+      `Cámara en vivo disponible: ${environment.supported && environment.allowed ? 'sí' : 'no'}`,
+      `Estado del permiso: ${access.state}`,
+      ...(lastError
+        ? [`Último error: ${lastError.name || 'Error'} · ${lastError.message || ''}`]
+        : []),
+    ].join('\n');
+  }
+  function hideRecovery() {
+    el('camera-recovery').hidden = true;
+  }
+  function showRecovery(problem, error = null) {
+    lastError = error;
+    el('camera-recovery-title').textContent = problem.title;
+    el('camera-recovery-message').textContent = problem.message;
+    el('camera-recovery').hidden = false;
+    el('scan-guide').hidden = true;
+    updatePermission();
   }
   function permissionNeeded() {
     status('Permite la cámara para leer. Consulta «Permisos» si te la pide cada vez.');
+    showRecovery(cameraProblem({ name: 'NotAllowedError' }));
   }
   async function maybeStart({ allowPrompt = false } = {}) {
     if (
@@ -100,17 +128,23 @@ export function createScanner() {
       start();
     else permissionNeeded();
   }
-  function enter() {
+  function enter({ userGesture = false } = {}) {
     if (active) return;
     active = true;
     wanted = access.automatic && !found;
-    if (wanted) maybeStart({ allowPrompt: true });
+    // A tap must reach getUserMedia in the same task. Permission queries are
+    // advisory and cannot consume the user gesture on mobile browsers.
+    if (wanted && userGesture && !access.blocked) {
+      start({ interactive: true });
+      access.refresh().then(updatePermission);
+    } else if (wanted) maybeStart({ allowPrompt: true });
     else if (!found) status('Inicio automático desactivado. Usa «Activar cámara» cuando quieras.');
   }
   function leave() {
     active = false;
     wanted = false;
     stop();
+    hideRecovery();
     permissionDialog.close();
   }
   function clearResult() {
@@ -224,10 +258,11 @@ export function createScanner() {
     }
     if (token === session && stream) timer = setTimeout(() => loop(token), 140);
   }
-  async function start() {
-    if (starting || !active || document.hidden) return;
+  function beginRequest({ native = false } = {}) {
     stop();
     clearResult();
+    if (!native) hideRecovery();
+    lastError = null;
     wanted = true;
     starting = true;
     const token = ++session;
@@ -237,59 +272,78 @@ export function createScanner() {
     el('scanner-stop').textContent = 'Cancelar';
     video.hidden = false;
     photo.hidden = true;
-    if (!navigator.mediaDevices?.getUserMedia) {
-      wanted = false;
-      status('La cámara necesita HTTPS y un navegador compatible. Puedes leer una imagen.');
-      stop();
+    status('Solicitando cámara…');
+    requestTimer = setTimeout(() => {
+      if (token !== session || !starting) return;
+      el('scanner-start').hidden = false;
+      el('scanner-start').disabled = false;
+      el('scanner-start').textContent = 'Reintentar cámara';
+      status('Esperando autorización. Si no aparece el aviso, prueba otra opción.');
+      showRecovery({
+        title: '¿No aparece el aviso de cámara?',
+        message:
+          'Puedes reintentar con un toque, usar «Permisos», abrir el lector en tu navegador o fotografiar el QR.',
+      });
+    }, 7000);
+    return token;
+  }
+  async function attachStream(next, token) {
+    if (token !== session) {
+      next.getTracks().forEach((track) => track.stop());
       return;
     }
-    status('Solicitando cámara…');
+    stream = next;
+    video.srcObject = next;
+    // Explicit properties also cover mobile engines that do not reflect the
+    // boolean muted/playsinline attributes into playback state consistently.
+    video.muted = true;
+    video.playsInline = true;
+    await video.play();
+    if (token !== session) return;
+    clearTimeout(requestTimer);
+    access.recordSuccess();
+    starting = false;
+    hideRecovery();
+    updatePermission();
+    el('scanner-stop').hidden = false;
+    el('scanner-stop').textContent = 'Detener';
+    el('scanner-start').hidden = true;
+    el('scanner-torch').hidden = !next.getVideoTracks()[0]?.getCapabilities?.().torch;
+    next.getVideoTracks()[0]?.addEventListener('ended', () => {
+      if (token !== session) return;
+      wanted = false;
+      stop();
+      status('La cámara se desconectó. Puedes volver a activarla o leer una imagen.');
+    });
+    status('Buscando QR…');
+    loop(token);
+  }
+  function failRequest(error, token, acquired = false) {
+    if (token !== session) return;
+    stop();
+    const denied = ['NotAllowedError', 'PermissionDeniedError'].includes(error.name) && !acquired;
+    if (denied) access.recordDenial();
+    wanted = denied && access.state === 'denied';
+    const problem = cameraProblem(error, { acquired });
+    status(problem.message);
+    showRecovery(problem, error);
+  }
+  async function start({ interactive = false } = {}) {
+    if ((starting && !interactive) || !active || document.hidden) return;
+    const token = beginRequest();
     let acquired = false;
     try {
-      const next = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facing }, width: { ideal: 1280 } },
-        audio: false,
-      });
-      if (token !== session) {
-        next.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      stream = next;
-      acquired = true;
-      video.srcObject = next;
-      await video.play();
-      if (token !== session) return;
-      access.recordSuccess();
-      updatePermission();
-      el('scanner-stop').hidden = false;
-      el('scanner-stop').textContent = 'Detener';
-      el('scanner-start').hidden = true;
-      el('scanner-torch').hidden = !next.getVideoTracks()[0]?.getCapabilities?.().torch;
-      next.getVideoTracks()[0]?.addEventListener('ended', () => {
-        if (token !== session) return;
-        wanted = false;
-        stop();
-        status('La cámara se desconectó. Puedes volver a activarla o leer una imagen.');
-      });
-      status('Buscando QR…');
-      loop(token);
-    } catch (error) {
-      if (token === session) {
-        stop();
-        if (error.name === 'NotAllowedError' && !acquired) access.recordDenial();
-        else wanted = false;
-        status(
-          error.name === 'NotAllowedError'
-            ? acquired
-              ? 'La cámara necesita un toque para iniciar. Pulsa «Activar cámara».'
-              : 'Permite la cámara en tu navegador. Consulta «Permisos» o lee una imagen.'
-            : error.name === 'NotFoundError'
-              ? 'No se encontró una cámara. Puedes subir una imagen.'
-              : error.name === 'NotReadableError'
-                ? 'La cámara está ocupada o no está disponible. Cierra la otra app e intenta de nuevo.'
-                : 'No se pudo iniciar la cámara. Intenta de nuevo.',
+      const environment = cameraEnvironment();
+      if (!environment.secure || !environment.allowed || !environment.supported)
+        throw new DOMException(
+          'El navegador no ofrece acceso a la cámara en este contexto.',
+          'NotSupportedError',
         );
-      }
+      const next = await requestCamera(facing, () => token === session);
+      acquired = token === session;
+      await attachStream(next, token);
+    } catch (error) {
+      failRequest(error, token, acquired);
     } finally {
       if (token === session) {
         starting = false;
@@ -297,14 +351,18 @@ export function createScanner() {
       }
     }
   }
-  el('scanner-start').addEventListener('click', start);
+  el('scanner-start').addEventListener('click', () => start({ interactive: true }));
   el('scanner-stop').addEventListener('click', () => {
     wanted = false;
     stop();
+    hideRecovery();
     status('Cámara detenida.');
   });
   el('scanner-switch').addEventListener('click', () => {
     facing = facing === 'environment' ? 'user' : 'environment';
+    nativeControls.forEach((control) =>
+      control.setConstraints({ video: { facingMode: { ideal: facing } }, audio: false }),
+    );
     if (stream) start();
     else status('Se usará la cámara ' + (facing === 'environment' ? 'trasera.' : 'frontal.'));
   });
@@ -323,16 +381,20 @@ export function createScanner() {
       if (token === session) status('Esta cámara no permite controlar la linterna.');
     }
   });
-  el('scanner-file').addEventListener('change', async (event) => {
+  async function readQrPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
     wanted = false;
     stop();
+    hideRecovery();
     clearResult();
     photo.hidden = true;
     const token = ++session;
     try {
-      if (file.size > 15_000_000 || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+      if (
+        file.size > 15_000_000 ||
+        !(file.type.startsWith('image/') || /\.(png|jpe?g|webp|heic|heif)$/i.test(file.name))
+      )
         throw new Error('Usa PNG, JPG o WebP de hasta 15 MB.');
       status('Leyendo imagen…');
       const source = await readFile(file),
@@ -357,7 +419,17 @@ export function createScanner() {
     } finally {
       event.target.value = '';
     }
-  });
+  }
+  el('scanner-file').addEventListener('change', readQrPhoto);
+  el('scanner-capture-file').addEventListener('change', readQrPhoto);
+  function capturePhoto() {
+    wanted = false;
+    stop();
+    permissionDialog.close();
+    el('scanner-capture-file').click();
+  }
+  el('scanner-capture').addEventListener('click', capturePhoto);
+  el('camera-guide-capture').addEventListener('click', capturePhoto);
   el('scan-copy').addEventListener('click', async () => {
     if (!found) return;
     try {
@@ -395,7 +467,7 @@ export function createScanner() {
         'morphiq-' + found.kind,
       );
   });
-  el('scan-again').addEventListener('click', start);
+  el('scan-again').addEventListener('click', () => start({ interactive: true }));
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       const wasActive = stream || starting;
@@ -417,8 +489,60 @@ export function createScanner() {
   permissionDialog.addEventListener('close', () => maybeStart());
   el('camera-permissions-try').addEventListener('click', () => {
     permissionDialog.close();
-    start();
+    start({ interactive: true });
   });
+  // Browsers with native capability controls can reopen a previously blocked
+  // permission directly. Older engines keep the ordinary button and photo path.
+  if ('HTMLUserMediaElement' in window) {
+    for (const id of ['camera-native-recovery', 'camera-native-guide']) {
+      const control = document.createElement('usermedia');
+      if (typeof control.setConstraints !== 'function') continue;
+      try {
+        control.setConstraints({ video: { facingMode: { ideal: facing } }, audio: false });
+      } catch {
+        continue;
+      }
+      control.className = 'camera-native-control';
+      control.lang = 'es';
+      let token = null;
+      control.addEventListener('click', (event) => {
+        if (!active || document.hidden || (starting && token === session)) {
+          event.preventDefault();
+          return;
+        }
+        token = beginRequest({ native: true });
+      });
+      control.addEventListener('stream', async () => {
+        const next = control.stream;
+        if (!next) return;
+        if (token !== session || !active || document.hidden) {
+          next.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        permissionDialog.close();
+        try {
+          await attachStream(next, token);
+        } catch (error) {
+          failRequest(error, token, true);
+        }
+      });
+      control.addEventListener('error', () =>
+        failRequest(
+          control.error || new DOMException('Acceso bloqueado.', 'NotAllowedError'),
+          token,
+        ),
+      );
+      control.addEventListener('cancel', () => {
+        if (token !== session) return;
+        stop();
+        wanted = false;
+        status('Solicitud cancelada. Puedes activar la cámara o fotografiar el QR.');
+      });
+      el(id).append(control);
+      el(id).hidden = false;
+      nativeControls.push(control);
+    }
+  }
   el('camera-auto-start').addEventListener('change', (event) => {
     access.setAutomatic(event.target.checked);
     wanted = event.target.checked && !found;

@@ -946,6 +946,28 @@ morphiq.com.mx</textarea>
             </div>
           </div>
           <div class="camera-toolbar">
+            <section
+              id="camera-recovery"
+              class="camera-recovery"
+              aria-labelledby="camera-recovery-title"
+              hidden
+            >
+              <h2 id="camera-recovery-title">Activa tu cámara</h2>
+              <p id="camera-recovery-message"></p>
+              <div class="camera-recovery-actions">
+                <span id="camera-native-recovery" hidden></span>
+                <button id="scanner-capture" type="button" class="tool-button">
+                  Fotografiar QR
+                </button>
+                <a
+                  id="camera-browser-open"
+                  class="tool-button"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Abrir en navegador ↗</a
+                >
+              </div>
+            </section>
             <div class="camera-controls">
               <button id="scanner-start" type="button" class="tool-button">Activar cámara</button
               ><button id="scanner-stop" type="button" class="tool-button" hidden>Detener</button
@@ -966,6 +988,14 @@ morphiq.com.mx</textarea>
                 Permisos
               </button>
             </div>
+            <input
+              id="scanner-capture-file"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              class="visually-hidden"
+              aria-label="Fotografiar un código QR"
+            />
             <p id="scanner-status" role="status" aria-live="polite">
               Cámara e imágenes se procesan en este dispositivo.
             </p>
@@ -1017,16 +1047,37 @@ morphiq.com.mx</textarea>
       </select>
       <ol id="camera-guide-steps"></ol>
       <p id="camera-guide-note" class="small-note"></p>
+      <input
+        id="camera-reader-link"
+        type="text"
+        inputmode="url"
+        readonly
+        hidden
+        aria-label="Enlace del lector para copiar"
+      />
+      <p id="camera-guide-installed" class="small-note"></p>
       <p class="small-note">
         El permiso lo guarda tu navegador. La cámara se apaga al salir del lector, al detectar un QR
         o mientras la app está en segundo plano.
       </p>
       <div class="camera-permission-actions">
+        <span id="camera-native-guide" hidden></span>
         <button id="camera-permissions-try" type="button" class="tool-button">Activar cámara</button
-        ><a id="camera-guide-help" target="_blank" rel="noopener noreferrer"
+        ><button id="camera-guide-capture" type="button" class="tool-button">Fotografiar QR</button>
+        <a id="camera-guide-open" target="_blank" rel="noopener noreferrer"
+          >Abrir lector en navegador ↗</a
+        >
+        <button id="camera-guide-copy" type="button" class="tool-button">
+          Copiar enlace del lector
+        </button>
+        <a id="camera-guide-help" target="_blank" rel="noopener noreferrer"
           >Ayuda del navegador ↗</a
         >
       </div>
+      <details class="camera-diagnostics">
+        <summary>Información para soporte</summary>
+        <p id="camera-diagnostics"></p>
+      </details>
     </dialog>
     <footer>
       Created by
