@@ -124,6 +124,49 @@ export class Store {
     if (task.status === 'pending') return this.updateTask(id, { status: 'ready' });
     return task;
   }
+  supersede(id: string, replacements: string[], reason: string) {
+    const old = this.task(id);
+    if (!old || !['blocked', 'failed', 'pending'].includes(old.status))
+      throw new Error('Solo sustituir tareas detenidas o pendientes');
+    if (
+      !replacements.length ||
+      replacements.some((next) => next === id || this.task(next)?.runId !== old.runId)
+    )
+      throw new Error('Sustituciones deben existir en esta misión');
+    const reachesOld = (next: string, seen = new Set<string>()): boolean => {
+      if (next === id) return true;
+      if (seen.has(next)) return false;
+      seen.add(next);
+      return this.task(next)!.dependencies.some((parent) => reachesOld(parent, seen));
+    };
+    if (replacements.some((next) => reachesOld(next)))
+      throw new Error('La sustitución depende de la tarea anterior');
+    for (const item of this.tasks(old.runId).filter((task) => task.dependencies.includes(id))) {
+      if (!['pending', 'ready', 'cancelled'].includes(item.status))
+        throw new Error('Dependiente iniciado; conserva su baseline');
+    }
+    this.updateTask(id, {
+      status: 'cancelled',
+      reason: 'Sustituida por ' + replacements.join(', ') + ': ' + reason,
+    });
+    for (const item of this.tasks(old.runId).filter(
+      (task) => ['pending', 'ready'].includes(task.status) && task.dependencies.includes(id),
+    ))
+      this.updateTask(item.id, {
+        dependencies: [
+          ...new Set(
+            item.dependencies.flatMap((parent) => (parent === id ? replacements : [parent])),
+          ),
+        ],
+      });
+    this.event('task.superseded', old.runId, id, {
+      replacements,
+      reason,
+      preservedCommit: old.commit,
+      preservedWorktree: old.worktree,
+    });
+    return this.task(id)!;
+  }
   claim(runId: string, max: number): Task | undefined {
     return this.transaction(() => {
       const run = this.run(runId);

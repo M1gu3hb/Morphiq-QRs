@@ -894,6 +894,21 @@ export class Scheduler {
         },
       );
       add(
+        'supersede_task',
+        'Retira una tarea detenida que ha sido dividida en tareas existentes. Conserva evidencia y redirige dependientes pendientes; no puede retirar trabajos en vuelo ni verificados.',
+        {
+          id: z.string(),
+          replacements: z.array(z.string()).min(1).max(8),
+          reason: z.string().min(10).max(1000),
+        },
+        (args) => {
+          own(args.id);
+          for (const id of args.replacements) own(id);
+          if (this.active.has(args.id)) throw new Error('Proceso aún en vuelo');
+          return this.store.supersede(args.id, args.replacements, args.reason);
+        },
+      );
+      add(
         'record_decision',
         'Registra decisión visible sustentada. final=true cierra solo análisis con tareas verificadas.',
         { decision: z.string().min(5).max(6000), final: z.boolean().default(false) },

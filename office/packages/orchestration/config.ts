@@ -73,6 +73,8 @@ export function processEnv(cfg: Config, withKey = false): NodeJS.ProcessEnv {
     GRADLE_USER_HOME: path.join(cfg.paths.cache, 'gradle'),
     ANDROID_USER_HOME: path.join(cfg.paths.state, 'android'),
     ANDROID_AVD_HOME: path.join(cfg.paths.root, 'tools/android-avd'),
+    JAVA_HOME: existsSync(path.join(cfg.paths.root, 'tools/jdk-home.txt')) ? readFileSync(path.join(cfg.paths.root, 'tools/jdk-home.txt'), 'utf8').trim() : process.env.JAVA_HOME,
+    JAVA_TOOL_OPTIONS: '-Duser.home="' + path.join(cfg.paths.state, 'java') + '"',
   };
   for (const name of Object.keys(env))
     if (

@@ -7,6 +7,39 @@ import { scopedPath, redact, retryDelay, taskWritable } from '../packages/orches
 
 const root = 'D:/MIS PROYECTOS/Morphiq Oficina/temp';
 const setup = () => new Store(path.join(mkdtempSync(path.join(root, 'test-')), 'state.sqlite'));
+test('superseding a blocked task retains its evidence and redirects unstarted dependents without a cycle', () => {
+  const db = setup();
+  db.createRun({ id: 'r', objective: 'recovery', repo: root, budget: 5, kind: 'product' });
+  for (const [id, dependencies] of [
+    ['old', []],
+    ['child', ['old']],
+    ['replacement', []],
+  ] as [string, string[]][])
+    db.createTask({
+      id,
+      runId: 'r',
+      title: id,
+      brief: id,
+      files: [],
+      acceptance: ['evidence'],
+      role: 'research',
+      kind: 'work',
+      dependencies,
+    });
+  db.updateTask('old', { status: 'blocked', worktree: 'preserved/path', commit: 'saved-commit' });
+  assert.throws(() => db.supersede('old', ['child'], 'would cause a cycle'), /depende/);
+  db.supersede('old', ['replacement'], 'Split into a verified smaller goal');
+  assert.equal(db.task('old')!.status, 'cancelled');
+  assert.equal(db.task('old')!.commit, 'saved-commit');
+  assert.equal(db.task('old')!.worktree, 'preserved/path');
+  assert.deepEqual(db.task('child')!.dependencies, ['replacement']);
+  db.updateTask('replacement', { status: 'verified' });
+  assert.throws(
+    () => db.supersede('replacement', ['child'], 'cannot discard passed work'),
+    /detenidas/,
+  );
+  db.close();
+});
 test('product research can author assigned documents but cannot write business code or alter reviews', () => {
   const task = {
     kind: 'work' as const,
