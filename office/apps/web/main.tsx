@@ -731,7 +731,7 @@ function App() {
                     <input
                       type="number"
                       min="1"
-                      max="8"
+                      max="10"
                       value={max}
                       onChange={(e) => setMax(e.target.value)}
                     />

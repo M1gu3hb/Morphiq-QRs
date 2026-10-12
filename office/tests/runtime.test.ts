@@ -5,12 +5,103 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { config, processEnv, officeRoot } from '../packages/orchestration/config.ts';
 import { Store } from '../packages/orchestration/store.ts';
-import { Scheduler } from '../packages/orchestration/scheduler.ts';
+import { Scheduler, taskSkills } from '../packages/orchestration/scheduler.ts';
+import { Roles } from '../packages/contracts/index.ts';
 import { execute } from '../packages/orchestration/process.ts';
 import { ownedAlive, cancelOwned } from '../packages/orchestration/owned-process.ts';
 import { estimate } from '../packages/telemetry/index.ts';
 import { officeToolAllowed } from '../packages/anthropic-adapter/index.ts';
 const root = 'D:/MIS PROYECTOS/Morphiq Oficina/temp';
+test('an authorized product failure returns to Opus for recovery without requiring owner intervention', async () => {
+  const dir = mkdtempSync(path.join(root, 'autonomous-')),
+    db = new Store(path.join(dir, 's.sqlite')),
+    scheduler = new Scheduler(db, config());
+  db.createRun({
+    id: 'r',
+    repo: dir,
+    budget: 5,
+    kind: 'product',
+    objective: 'autonomous recovery',
+    authorizeProductWrite: true,
+  });
+  db.saveSettings({ authorizedProductRunId: 'r' });
+  db.updateRun('r', { status: 'running' });
+  db.createTask({
+    id: 'work',
+    runId: 'r',
+    title: 'first failure',
+    brief: 'recover',
+    files: [],
+    acceptance: ['pass'],
+    role: 'web',
+    kind: 'work',
+    dependencies: [],
+  });
+  db.updateTask('work', { status: 'blocked', attempts: 1, reason: 'diagnostic available' });
+  const directed: string[] = [];
+  scheduler.enabled = true;
+  scheduler.direct = async (run) => {
+    directed.push(run.id);
+  };
+  await scheduler.tick();
+  assert.deepEqual(directed, ['r']);
+  assert.equal(db.run('r')!.status, 'running');
+  db.close();
+});
+test('each worker starts with a skill actually allowed to its role, including integration and reviews', () => {
+  const roles = JSON.parse(
+    readFileSync(path.join(officeRoot, 'agent-kit/agents/roles.json'), 'utf8'),
+  );
+  for (const role of Roles.options)
+    for (const skill of taskSkills({ kind: 'work', role }))
+      assert.ok(roles[role].includes(skill), role + ': ' + skill);
+  assert.deepEqual(taskSkills({ kind: 'review', role: 'review' }), ['morphiq-review']);
+});
+test('product evidence records the npm script actually executed rather than an ignored fixture test selector', async () => {
+  const dir = mkdtempSync(path.join(root, 'check-label-')),
+    db = new Store(path.join(dir, 's.sqlite')),
+    scheduler = new Scheduler(db, config());
+  db.createRun({
+    id: 'r',
+    repo: dir,
+    budget: 5,
+    kind: 'product',
+    objective: 'evidence label',
+    authorizeProductWrite: true,
+  });
+  db.saveSettings({ authorizedProductRunId: 'r' });
+  const task = db.createTask({
+    id: 'work',
+    runId: 'r',
+    title: 'check',
+    brief: 'real command',
+    files: [],
+    acceptance: ['pass'],
+    role: 'research',
+    kind: 'work',
+    dependencies: [],
+  });
+  db.updateTask(task.id, { worktree: dir });
+  writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify({ type: 'module', scripts: { test: 'node --test actual.test.js' } }),
+  );
+  writeFileSync(
+    path.join(dir, 'actual.test.js'),
+    "import {test} from 'node:test';test('actual product test',()=>{});\n",
+  );
+  const evidence = await scheduler.check(
+    db.task(task.id)!,
+    'test',
+    undefined,
+    undefined,
+    'nonexistent-fixture.test.js',
+  );
+  assert.equal(evidence.exitCode, 0);
+  assert.equal(evidence.command, 'npm run test');
+  assert.match(evidence.output, /actual product test/);
+  db.close();
+});
 test('pause prevents claims; cancellation aborts owned work and preserves verified evidence', () => {
   const dir = mkdtempSync(path.join(root, 'scheduler-')),
     db = new Store(path.join(dir, 's.sqlite')),
@@ -249,7 +340,7 @@ test('local API rejects foreign origins and unauthorized control, and works with
         await fetch(base + '/api/settings', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ maxWorkers: 9 }),
+          body: JSON.stringify({ maxWorkers: 11 }),
         })
       ).status,
       400,
@@ -259,7 +350,7 @@ test('local API rejects foreign origins and unauthorized control, and works with
         await fetch(base + '/api/settings', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ maxWorkers: 2 }),
+          body: JSON.stringify({ maxWorkers: 10 }),
         })
       ).status,
       200,

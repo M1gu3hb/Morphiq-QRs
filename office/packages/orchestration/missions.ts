@@ -5,6 +5,19 @@ import { z } from 'zod';
 import type { Config } from './config.ts';
 import type { Store } from './store.ts';
 import type { Run } from '../contracts/index.ts';
+export function specificationPrompt(
+  run: Pick<Run, 'specSha' | 'directorSession'>,
+  document: string,
+) {
+  if (!document) return '';
+  if (run.specSha && createHash('sha256').update(document).digest('hex') !== run.specSha)
+    throw new Error('La especificación guardada cambió; se conserva la misión para revisar');
+  return run.directorSession
+    ? '\nDocumento aprobado SHA256 ' +
+        run.specSha +
+        ' conservado completo. Ya lo recibiste al inicio; consulta read_mission para cualquier sección necesaria, incluidos catálogos, QA y release. No omitas requisitos por compactación.'
+    : '\nESPECIFICACIÓN COMPLETA APROBADA (' + run.specSha + '):\n' + document;
+}
 
 export const MissionImport = z.object({
   document: z.string().min(100).max(160000),

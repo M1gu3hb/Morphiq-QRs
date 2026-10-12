@@ -388,8 +388,10 @@ const server = createServer(async (req, res) => {
         const id = pathname.split('/')[3],
           run = store.run(id),
           context = z.string().min(5).max(6000).parse(input.context);
-        if (!run || run.status !== 'blocked')
-          throw new Error('Solo una misión bloqueada requiere contexto del director');
+        if (!run || !['blocked', 'paused'].includes(run.status))
+          throw new Error('El contexto requiere una misión detenida');
+        if ([...scheduler.active.values()].some((item) => item.runId === id))
+          throw new Error('Espera a que terminen las llamadas en vuelo');
         if (store.cost(id).unreconciled)
           throw new Error('Reconciliar queries interrumpidas antes de continuar');
         store.event('run.context', id, undefined, { context });
@@ -414,7 +416,7 @@ const server = createServer(async (req, res) => {
       }
       if (pathname === '/api/settings') {
         const schema = z.object({
-          maxWorkers: z.number().int().min(1).max(8).optional(),
+          maxWorkers: z.number().int().min(1).max(10).optional(),
           manualBalance: z.number().min(0).nullable().optional(),
           creditExpiry: z.string().nullable().optional(),
           budgetAlertPercent: z.number().min(1).max(100).optional(),

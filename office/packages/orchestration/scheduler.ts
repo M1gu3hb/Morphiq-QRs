@@ -7,15 +7,35 @@ import { z } from 'zod';
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { TaskInput, ReportSchema, type Run, type Task } from '../contracts/index.ts';
+import { TaskInput, ReportSchema, Roles, type Run, type Task } from '../contracts/index.ts';
 import { scopedPath, redact, taskWritable } from './policy.ts';
 import { Store } from './store.ts';
 import { type Config, officeRoot } from './config.ts';
 import { execute } from './process.ts';
 import { git, dependencyWorktree, integrate } from '../git-integration/index.ts';
 import { runQuery, loadSkills } from '../anthropic-adapter/index.ts';
-import { productAuthorized, requirementIds, assertReleaseReadiness } from './missions.ts';
+import {
+  productAuthorized,
+  requirementIds,
+  assertReleaseReadiness,
+  specificationPrompt,
+} from './missions.ts';
 import { fetchReference } from './references.ts';
+import { publishCandidate } from './publication.ts';
+export function taskSkills(task: Pick<Task, 'kind' | 'role'>) {
+  return task.kind === 'review' || task.role === 'review'
+    ? ['morphiq-review']
+    : task.role === 'integration'
+      ? ['morphiq-git-integration']
+      : [
+          'morphiq-worker',
+          ...(task.role === 'qr'
+            ? ['morphiq-qr-quality']
+            : task.role === 'mobile'
+              ? ['morphiq-mobile-readiness']
+              : []),
+        ];
+}
 
 export class Scheduler {
   active = new Map<string, { runId: string; controller: AbortController }>();
@@ -37,7 +57,10 @@ export class Scheduler {
     while (this.active.size && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
   }
   maxWorkers() {
-    return Number(this.store.settings().maxWorkers ?? this.cfg.maxWorkers);
+    return Math.min(
+      10,
+      Math.max(1, Number(this.store.settings().maxWorkers ?? this.cfg.maxWorkers)),
+    );
   }
   control(id: string, action: 'pause' | 'resume' | 'cancel') {
     const run = this.store.run(id);
@@ -131,7 +154,7 @@ export class Scheduler {
           continue;
         if (tasks.some((t) => ['blocked', 'failed'].includes(t.status))) {
           if (
-            tasks.some((t) => t.attempts >= 2) &&
+            (run.kind === 'product' || tasks.some((t) => t.attempts >= 2)) &&
             run.directorPasses < (run.kind === 'product' ? 48 : 6)
           )
             void this.direct(run);
@@ -196,14 +219,14 @@ export class Scheduler {
           prompt.replace(
             'No crees nuevas funciones del QR.',
             run.kind === 'product'
-              ? 'Esta misión de producto sí autoriza exclusivamente las funciones de la especificación completa que sigue. Empieza por inventario real y matriz de capacidades; delega la implementación a Haiku. Los trabajadores heredan commits de dependencias verificadas. Registra cada requisito con record_requirements y evidencia. No cuentes una capacidad solo por existir en README. Planifica todas las oleadas, catálogos completos, APK, QA y release dentro del presupuesto. Los checks finales obligatorios son test, test:integration, build, test:e2e, test:artifacts, android:build, android:verify y release:verify; delega sus scripts reales. request_integration prepara el único candidato local tras todos los gates y pausa para publicación y verificación externa coordinadas por Codex. No cierra el run antes de publicar. Puedes usar search_files, fetch_reference, read_mission, edit_file y sync_dependencies.'
+              ? 'Esta misión de producto autoriza exclusivamente las funciones del MD aprobado. Tú diriges toda la misión y Haiku implementa, revisa y prueba; Codex solo mantiene la oficina. Dispones de hasta ' +
+                  this.maxWorkers() +
+                  ' Haiku simultáneos incluyendo revisores. Empieza por inventario real y matriz; registra todos los requisitos con evidencia y conserva todas las oleadas/catálogos/APK/QA/release dentro del presupuesto. Los trabajadores heredan commits de dependencias verificadas. Los checks finales obligatorios son test, test:integration, build, test:e2e, test:artifacts, android:build, android:verify y release:verify. Antes de integrar delega también release:publish y release:verify:production: publican solo M1gu3hb/Morphiq-QRs y el proyecto existente Vercel morphiqqr (team mh-astral-systems), con CLI ya autenticadas, sin secretos en logs. La verificación de producción debe probar los flujos reales en las URLs públicas y escribir reports/release-publication.json (ignorado en Git) con commit, version, minSdk, webUrl=https://morphiqqr.vercel.app/, apkUrl público del release GitHub y sha256. request_integration crea un único candidato tras los gates; después llama publish_candidate para ejecutar esos scripts revisados y verificar URLs/descarga/hash reales. La misión solo termina después de publicar/verificar. Coordina un QA con todas las dependencias verificadas antes de request_integration; no integres cambios aún incompletos. Puedes leer read_mission en cualquier momento.'
               : 'No crees nuevas funciones del QR.',
           ) +
           '\nMatriz registrada: ' +
           JSON.stringify(run.requirements ?? {}) +
-          (specification
-            ? '\nESPECIFICACIÓN COMPLETA APROBADA (' + run.specSha + '):\n' + specification
-            : ''),
+          specificationPrompt(run, specification),
         system: loadSkills(['morphiq-director', 'morphiq-budget']),
         budget: Math.min(run.kind === 'product' ? 1 : 0.4, run.budget / 3),
         signal: controller.signal,
@@ -304,7 +327,12 @@ export class Scheduler {
     );
     const evidence = {
       id: randomUUID(),
-      command: kind === 'install' ? 'npm ci' : (testFile ?? script ?? kind),
+      command:
+        kind === 'install'
+          ? 'npm ci'
+          : this.store.run(task.runId)!.kind === 'fixture'
+            ? (testFile ?? 'node --test *.test.js')
+            : 'npm run ' + (script ?? kind),
       startedAt,
       ...result,
     };
@@ -361,17 +389,7 @@ export class Scheduler {
         base: target?.base ?? preparedBase,
         skill: task.kind === 'review' ? 'morphiq-review' : 'morphiq-worker',
       });
-      const skills =
-        task.kind === 'review'
-          ? ['morphiq-review']
-          : [
-              'morphiq-worker',
-              ...(task.role === 'qr'
-                ? ['morphiq-qr-quality']
-                : task.role === 'mobile'
-                  ? ['morphiq-mobile-readiness']
-                  : []),
-            ];
+      const skills = taskSkills(task);
       await runQuery({
         cfg: this.cfg,
         store: this.store,
@@ -602,17 +620,22 @@ export class Scheduler {
     );
     add(
       'read_file',
-      'Lee un archivo relativo del repositorio; no permite secretos ni enlaces fuera del alcance.',
+      'Lee un archivo relativo. taskId permite consultar resultados/worktrees preservados de esta misma misión, también tareas sustituidas; nunca secretos ni otras misiones.',
       {
         path: z.string(),
+        taskId: z.string().optional(),
         offset: z.number().int().min(0).default(0),
         limit: z.number().int().min(1).max(16000).default(8000),
       },
-      (args) =>
-        readFileSync(scopedPath(cwd, args.path), 'utf8').slice(
+      (args) => {
+        const source = args.taskId ? this.store.task(args.taskId) : undefined;
+        if (args.taskId && (!source || source.runId !== run.id || !source.worktree))
+          throw new Error('Se requiere un worktree de esta misión');
+        return readFileSync(scopedPath(source?.worktree ?? cwd, args.path), 'utf8').slice(
           args.offset,
           args.offset + args.limit,
-        ),
+        );
+      },
     );
     add(
       'list_files',
@@ -778,7 +801,7 @@ export class Scheduler {
         );
       add(
         'create_task',
-        'Crea tarea idempotente con objetivo, aceptación y propiedad; crea dependencias primero.',
+        'Crea tarea idempotente. Perfiles con escritura: web/design/qr/mobile; research solo docs/ de producto. qa/integration/review son lectura y checks. Para implementar modelo de documento o JS usa web o qr. Crea dependencias primero.',
         { ...TaskInput.omit({ runId: true, kind: true, targetId: true }).shape },
         (args) => {
           if (!args.id.startsWith(run.id + '-'))
@@ -842,10 +865,15 @@ export class Scheduler {
           id: z.string(),
           context: z.string().min(5).max(6000),
           acceptance: z.array(z.string()).min(1).optional(),
+          role: Roles.optional(),
         },
         (args) => {
           const old = own(args.id);
           if (old.status === 'running') throw new Error('No revisar una tarea en vuelo');
+          if (old.reviewId && this.active.has(old.reviewId))
+            throw new Error('La revisión independiente sigue en vuelo');
+          if (old.kind === 'review' && args.role && args.role !== 'review')
+            throw new Error('Un revisor conserva su perfil de lectura');
           this.store.event('task.revised', run.id, old.id, { context: args.context });
           if (old.attempts >= 2) {
             if (!args.acceptance)
@@ -859,7 +887,7 @@ export class Scheduler {
               acceptance: args.acceptance,
               files: old.files,
               dependencies: old.dependencies,
-              role: old.role,
+              role: args.role ?? old.role,
               kind: old.kind,
             });
             this.store.updateTask(old.id, {
@@ -871,6 +899,11 @@ export class Scheduler {
                 status: 'cancelled',
                 reason: 'Objetivo sustituido',
               });
+            this.store.updateTask(next.id, {
+              worktree: old.worktree,
+              base: old.base,
+              commit: old.commit,
+            });
             for (const dependent of this.store
               .tasks(run.id)
               .filter((t) => t.dependencies.includes(old.id) && t.status === 'ready'))
@@ -890,6 +923,7 @@ export class Scheduler {
             report: undefined,
             reviewId: undefined,
             reason: undefined,
+            role: args.role ?? old.role,
           });
         },
       );
@@ -926,6 +960,12 @@ export class Scheduler {
           }
           return { recorded: true };
         },
+      );
+      add(
+        'publish_candidate',
+        'Publica el candidato ya integrado de esta misión autorizada mediante scripts implementados/revisados por Haiku. Comprueba la web y descarga pública/hash de APK; solo entonces DONE.',
+        {},
+        () => publishCandidate(this.store, this.cfg, this.store.run(run.id)!, signal),
       );
       add(
         'request_integration',
@@ -994,11 +1034,11 @@ export class Scheduler {
               status: run.kind === 'product' ? 'integrated' : 'done',
             });
           this.store.updateRun(run.id, {
-            status: run.kind === 'product' ? 'paused' : 'done',
+            status: run.kind === 'product' ? 'running' : 'done',
             commit,
             reason:
               run.kind === 'product'
-                ? 'Candidato completo verificado; pendiente publicación autorizada y comprobación de URLs web/APK por Codex.'
+                ? 'Candidato completo verificado; Opus continúa con publish_candidate y pruebas de producción.'
                 : undefined,
           });
           this.store.event('integration.completed', run.id, undefined, { commit });

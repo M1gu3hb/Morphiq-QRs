@@ -7,6 +7,34 @@ import { scopedPath, redact, retryDelay, taskWritable } from '../packages/orches
 
 const root = 'D:/MIS PROYECTOS/Morphiq Oficina/temp';
 const setup = () => new Store(path.join(mkdtempSync(path.join(root, 'test-')), 'state.sqlite'));
+test('ten global Haiku slots include independent reviewers and block the eleventh task across runs', () => {
+  const db = setup();
+  for (const id of ['a', 'b'])
+    db.createRun({ id, objective: 'slots', repo: root, budget: 5, kind: 'fixture' });
+  for (let i = 0; i < 11; i++) {
+    const runId = i < 6 ? 'a' : 'b',
+      id = 't' + i;
+    db.createTask({
+      id,
+      runId,
+      title: id,
+      brief: 'work',
+      files: [id + '.js'],
+      acceptance: ['pass'],
+      role: i % 2 ? 'review' : 'web',
+      kind: i % 2 ? 'review' : 'work',
+      dependencies: [],
+    });
+    db.assign(id);
+  }
+  for (let i = 0; i < 6; i++) assert.ok(db.claim('a', 10));
+  for (let i = 0; i < 4; i++) assert.ok(db.claim('b', 10));
+  assert.equal(db.claim('b', 10), undefined);
+  assert.equal(db.tasks().filter((t) => t.status === 'running').length, 10);
+  db.updateTask('t0', { status: 'verified' });
+  assert.ok(db.claim('b', 10));
+  db.close();
+});
 test('superseding a blocked task retains its evidence and redirects unstarted dependents without a cycle', () => {
   const db = setup();
   db.createRun({ id: 'r', objective: 'recovery', repo: root, budget: 5, kind: 'product' });

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { config } from '../packages/orchestration/config.ts';
 import { Store } from '../packages/orchestration/store.ts';
 import {
@@ -9,6 +10,7 @@ import {
   productAuthorized,
   assertReleaseReadiness,
   requirementIds,
+  specificationPrompt,
 } from '../packages/orchestration/missions.ts';
 test('importing the same MD preserves one run, scope authorization, complete spec and prior costs', () => {
   const cfg = config(),
@@ -42,6 +44,15 @@ test('importing the same MD preserves one run, scope authorization, complete spe
     /clave/,
   );
   db.close();
+});
+test('the first director gets the complete MD; resume can retrieve it without appending duplicate copies', () => {
+  const document = '# Full mission\n' + 'Requirement\n'.repeat(500) + 'FINAL REQUIREMENT';
+  const specSha = createHash('sha256').update(document).digest('hex');
+  assert.ok(specificationPrompt({ specSha }, document).endsWith(document));
+  const resumed = specificationPrompt({ specSha, directorSession: 'real-sdk-session' }, document);
+  assert.ok(resumed.includes('read_mission') && resumed.includes(specSha));
+  assert.ok(!resumed.includes(document));
+  assert.throws(() => specificationPrompt({ specSha }, document + 'changed'), /cambió/);
 });
 test('release cannot omit a requirement or include excluded Q04; physical checks can remain candidate', () => {
   const db = new Store(
