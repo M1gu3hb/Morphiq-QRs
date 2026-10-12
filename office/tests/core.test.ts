@@ -3,10 +3,22 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 import { Store } from '../packages/orchestration/store.ts';
-import { scopedPath, redact, retryDelay } from '../packages/orchestration/policy.ts';
+import { scopedPath, redact, retryDelay, taskWritable } from '../packages/orchestration/policy.ts';
 
 const root = 'D:/MIS PROYECTOS/Morphiq Oficina/temp';
 const setup = () => new Store(path.join(mkdtempSync(path.join(root, 'test-')), 'state.sqlite'));
+test('product research can author assigned documents but cannot write business code or alter reviews', () => {
+  const task = {
+    kind: 'work' as const,
+    role: 'research' as const,
+    files: ['docs/mission/matrix.md'],
+  };
+  assert.equal(taskWritable({ kind: 'product' }, task), true);
+  assert.equal(taskWritable({ kind: 'product' }, { ...task, files: ['src/qr/core.js'] }), false);
+  assert.equal(taskWritable({ kind: 'product' }, { ...task, kind: 'review' }), false);
+  assert.equal(taskWritable({ kind: 'analysis' }, task), false);
+  assert.equal(taskWritable({ kind: 'fixture' }, task), false);
+});
 test('reserves concurrent budgets atomically and releases only completed queries', () => {
   const db = setup();
   db.createRun({ id: 'r', objective: 'fixture', repo: root, budget: 1, kind: 'fixture' });

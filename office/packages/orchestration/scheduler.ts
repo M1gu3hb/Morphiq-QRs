@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from 
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { TaskInput, ReportSchema, type Run, type Task } from '../contracts/index.ts';
-import { scopedPath, redact } from './policy.ts';
+import { scopedPath, redact, taskWritable } from './policy.ts';
 import { Store } from './store.ts';
 import { type Config, officeRoot } from './config.ts';
 import { execute } from './process.ts';
@@ -380,7 +380,9 @@ export class Scheduler {
         model: this.cfg.worker,
         cwd,
         prompt: `Tarea ${task.id}: ${task.brief}\nAceptación: ${JSON.stringify(task.acceptance)}\nArchivos permitidos: ${JSON.stringify(task.files)}. Tipo misión: ${run.kind}. ${target ? `Revisa este resultado de forma independiente: ${JSON.stringify(target.report)}\nEvidencia posterior del runner: ${JSON.stringify({ commit: target.commit, base: target.base, checks: target.checks.map((c) => ({ command: c.command, exitCode: c.exitCode })) })}. Verifica el commit real con inspect_git; el informe del worker fue escrito ANTES de que el runner hiciera el commit.\nDiff: ${(target.diff ?? '').slice(0, 12000)}` : 'El runner valida el alcance y crea el commit local automáticamente DESPUÉS de tu informe; no tienes que ejecutar Git.'}\nInvoca primero Skill con morphiq-office:${skills[0]}. Lee archivos con read_file, implementa con write_file cuando tengas permiso, ejecuta run_check y envía submit_result. En fixture puedes ejecutar testFile='math.test.js' o 'text.test.js' para comprobar tu alcance; el integrador ejecuta ambas pruebas. El informe debe listar evidencias reales y no solo declarar éxito.`,
-        system: loadSkills(skills),
+        system:
+          loadSkills(skills) +
+          '\nTodos los perfiles, incluidos investigadores y revisores, pueden ejecutar run_check(kind="install") para npm ci en el worktree. Esto no exige propiedad de package.json ni cambia el lockfile. Úsalo antes de checks que necesiten dependencias; no confundas este check con sync_dependencies, que sí exige propiedad de ambos archivos de paquetes. Lee fuentes clonadas con read_reference. Research solo puede escribir documentos asignados bajo docs/ en misiones product. Cada invocación tiene un máximo de 40 turnos: produce evidencia y pide división si el brief excede ese alcance; no inventes falta de presupuesto si no existe un error real.',
         budget: Math.min(run.kind === 'product' ? 0.3 : 0.12, run.budget / 8),
         signal: controller.signal,
         mcp: { office: this.tools(run, this.store.task(task.id)!, controller.signal) },
@@ -478,6 +480,29 @@ export class Scheduler {
         }),
       );
     const cwd = task?.worktree ?? run.repo;
+    add(
+      'read_reference',
+      'Lee fuentes clonadas en D:/.../references. Sin path devuelve SHA y archivos; con path devuelve contenido segmentado. Solo lectura.',
+      {
+        reference: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+        path: z.string().optional(),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(20000).default(10000),
+      },
+      (args) => {
+        const root = path.join(this.cfg.paths.root, 'references', args.reference);
+        if (!existsSync(root)) throw new Error('Referencia no instalada');
+        return args.path
+          ? readFileSync(scopedPath(root, args.path), 'utf8').slice(
+              args.offset,
+              args.offset + args.limit,
+            )
+          : {
+              sha: git(root, 'rev-parse', 'HEAD'),
+              files: git(root, 'ls-files').split('\n').slice(0, 500),
+            };
+      },
+    );
     tools.push(
       tool(
         'inspect_image',
@@ -617,11 +642,7 @@ export class Scheduler {
           );
         },
       );
-      if (
-        task.kind === 'work' &&
-        run.kind !== 'analysis' &&
-        ['web', 'design', 'qr', 'mobile'].includes(task.role)
-      )
+      if (taskWritable(run, task))
         add(
           'write_file',
           'Escribe solo archivos con propiedad asignada en este worktree.',
@@ -635,11 +656,7 @@ export class Scheduler {
             return { path: args.path, bytes: Buffer.byteLength(args.content) };
           },
         );
-      if (
-        task.kind === 'work' &&
-        run.kind !== 'analysis' &&
-        ['web', 'design', 'qr', 'mobile'].includes(task.role)
-      ) {
+      if (taskWritable(run, task)) {
         add(
           'edit_file',
           'Sustituye una única coincidencia literal dentro de un archivo asignado, conservando el resto.',

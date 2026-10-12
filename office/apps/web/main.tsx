@@ -310,7 +310,11 @@ function App() {
         <div className="sidebar-project">
           <small>Proyecto conectado</small>
           <strong>Morphiq QRs</strong>
-          <span>{state?.settings.authorizedProductRunId ? 'main / misión autorizada' : 'main / solo lectura'}</span>
+          <span>
+            {state?.settings.authorizedProductRunId
+              ? 'main / misión autorizada'
+              : 'main / solo lectura'}
+          </span>
           <a href="https://morphiqqr.vercel.app/" target="_blank" rel="noreferrer">
             Abrir estudio ↗
           </a>

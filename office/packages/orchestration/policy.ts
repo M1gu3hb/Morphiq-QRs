@@ -1,5 +1,16 @@
 import path from 'node:path';
 import { existsSync, realpathSync } from 'node:fs';
+import type { Run, Task } from '../contracts/index.ts';
+export function taskWritable(run: Pick<Run, 'kind'>, task: Pick<Task, 'kind' | 'role' | 'files'>) {
+  if (task.kind !== 'work' || run.kind === 'analysis') return false;
+  if (['web', 'design', 'qr', 'mobile'].includes(task.role)) return true;
+  return (
+    run.kind === 'product' &&
+    task.role === 'research' &&
+    task.files.length > 0 &&
+    task.files.every((file) => file.startsWith('docs/'))
+  );
+}
 export function redact(text: string, secret?: string): string {
   let result = text
     .replace(/sk-ant-[A-Za-z0-9_-]+/g, '[REDACTED]')
