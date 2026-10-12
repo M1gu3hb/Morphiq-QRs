@@ -1,0 +1,58 @@
+[
+  {
+    "license": "Anthropic Commercial Terms",
+    "url": "https://github.com/anthropics/claude-agent-sdk-typescript.git",
+    "partsUsed": "Reference contracts only; no code copied",
+    "consultedDate": "2026-10-11",
+    "sha": "85d8f8e0772199ec7965a0c2e874ac88343f2a01",
+    "name": "claude-agent-sdk-typescript"
+  },
+  {
+    "license": "No root license found; reference only",
+    "url": "https://github.com/anthropics/claude-agent-sdk-demos.git",
+    "partsUsed": "Reference contracts only; no code copied",
+    "consultedDate": "2026-10-11",
+    "sha": "826b268506a5f3707623c9e6140b200befcbebae",
+    "name": "claude-agent-sdk-demos"
+  },
+  {
+    "license": "Per-folder LICENSE.txt",
+    "url": "https://github.com/anthropics/skills.git",
+    "partsUsed": "5 complete skill folders",
+    "consultedDate": "2026-10-11",
+    "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+    "name": "skills"
+  },
+  {
+    "license": "MIT",
+    "url": "https://github.com/obra/superpowers.git",
+    "partsUsed": "9 complete skill folders",
+    "consultedDate": "2026-10-11",
+    "sha": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+    "name": "superpowers"
+  },
+  {
+    "license": "MIT",
+    "url": "https://github.com/pixel-agents-hq/pixel-agents.git",
+    "partsUsed": "Canvas gameLoop.ts adapted; state taxonomy; no sprites/fonts copied",
+    "consultedDate": "2026-10-11",
+    "sha": "d1e007a9fdf3003c252d2973abe1999ae59aec33",
+    "name": "pixel-agents"
+  },
+  {
+    "license": "MIT",
+    "url": "https://github.com/ccusage/ccusage.git",
+    "partsUsed": "Reference contracts only; no code copied",
+    "consultedDate": "2026-10-11",
+    "sha": "cf057f1fe9add65faa32268a47716fe042e78a63",
+    "name": "ccusage"
+  },
+  {
+    "license": "MIT",
+    "url": "https://github.com/builderz-labs/mission-control.git",
+    "partsUsed": "Reference contracts only; no code copied",
+    "consultedDate": "2026-10-11",
+    "sha": "e28edf8b28c85a32f1fd55ac577d325df6b16e4a",
+    "name": "mission-control"
+  }
+]

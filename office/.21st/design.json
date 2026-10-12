@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "project": {
+    "name": "morphiq-office",
+    "productType": "private local agent office",
+    "stack": [
+      "react",
+      "vite"
+    ]
+  },
+  "sources": {
+    "tokens": [],
+    "components": [],
+    "assets": [],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "dark",
+    "colors": {
+      "background": "#000000",
+      "panel": "#050a12",
+      "electricBlue": "#2178ff",
+      "text": "#dbe5f4",
+      "muted": "#899bb5",
+      "border": "#1c293a"
+    },
+    "typography": {
+      "body": "Segoe UI, Arial",
+      "heading": "Segoe UI 600",
+      "numeric": "tabular numerals"
+    },
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "compact"
+  },
+  "components": {
+    "installed": [],
+    "preferredPrimitives": [],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [
+      "Preserve Morphiq QR identity",
+      "Office canvas is principal visual",
+      "Actual SDK events only",
+      "Accessible list equivalent",
+      "Local assets"
+    ],
+    "avoid": [
+      "Fake metrics or agents",
+      "Public runner",
+      "Decorative generic gradients",
+      "SaaS landing"
+    ]
+  },
+  "decisions": [
+    "Office Canvas derives RAF loop from Pixel Agents MIT, original drawn sprites",
+    "21st search informed task/inspector structure; no catalog code or hosted generation used"
+  ],
+  "evidence": [
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:vite",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-10-12T00:48:58.218Z"
+}

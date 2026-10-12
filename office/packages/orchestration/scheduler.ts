@@ -1,0 +1,722 @@
+import {
+  createSdkMcpServer,
+  tool,
+  type SdkMcpToolDefinition,
+} from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
+import { mkdirSync, readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { TaskInput, ReportSchema, type Run, type Task } from '../contracts/index.ts';
+import { scopedPath, redact } from './policy.ts';
+import { Store } from './store.ts';
+import { type Config, officeRoot } from './config.ts';
+import { execute } from './process.ts';
+import { git, worktree, integrate } from '../git-integration/index.ts';
+import { runQuery, loadSkills } from '../anthropic-adapter/index.ts';
+
+export class Scheduler {
+  active = new Map<string, { runId: string; controller: AbortController }>();
+  directors = new Set<string>();
+  enabled = false;
+  timer?: NodeJS.Timeout;
+  ticking = false;
+  constructor(
+    public store: Store,
+    public cfg: Config,
+  ) {}
+  start() {
+    this.timer = setInterval(() => void this.tick(), 750);
+  }
+  async stop() {
+    if (this.timer) clearInterval(this.timer);
+    for (const item of this.active.values()) item.controller.abort();
+    const deadline = Date.now() + 8000;
+    while (this.active.size && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+  }
+  maxWorkers() {
+    return Number(this.store.settings().maxWorkers ?? this.cfg.maxWorkers);
+  }
+  control(id: string, action: 'pause' | 'resume' | 'cancel') {
+    const run = this.store.run(id);
+    if (!run) throw new Error('Misión no encontrada');
+    if (run.status === 'done') return run;
+    if (run.status === 'cancelled' && action !== 'cancel')
+      throw new Error('Misión cancelada; crea una nueva misión para continuar');
+    if (action === 'cancel') {
+      this.store.updateRun(id, {
+        status: 'cancelled',
+        reason: 'Cancelada por el propietario; llamadas en vuelo pueden tener uso pendiente.',
+      });
+      for (const item of this.active.values()) if (item.runId === id) item.controller.abort();
+      for (const task of this.store.tasks(id))
+        if (!['verified', 'integrated', 'done'].includes(task.status))
+          this.store.updateTask(task.id, {
+            status: 'cancelled',
+            reason: 'Cancelación solicitada',
+            leaseUntil: undefined,
+          });
+    } else if (action === 'pause')
+      this.store.updateRun(id, {
+        status: 'paused',
+        reason: 'Pausa solicitada; trabajos en vuelo terminan, no arrancan otros.',
+      });
+    else {
+      if (!this.enabled) throw new Error('API/modelos no disponibles');
+      if (this.store.cost(id).unreconciled)
+        throw new Error(
+          'Hay gasto pendiente de reconciliar. Confirma su coste en Configuración antes de retomar.',
+        );
+      if (this.store.tasks(id).some((t) => t.status === 'blocked' || t.status === 'failed'))
+        throw new Error('Revisa y reintenta las tareas detenidas antes de retomar');
+      this.store.updateRun(id, {
+        status: this.store.tasks(id).length ? 'running' : 'queued',
+        reason: undefined,
+      });
+    }
+    return this.store.run(id)!;
+  }
+  retry(id: string, context: string) {
+    const task = this.store.task(id);
+    if (!task) throw new Error('Tarea no encontrada');
+    if (!['blocked', 'failed'].includes(task.status))
+      throw new Error('Solo se reintentan tareas fallidas o bloqueadas');
+    if (this.active.has(id)) throw new Error('El proceso aún está cerrando');
+    if (task.attempts >= 2)
+      throw new Error('Dos fallos: requiere revisión del director, retoma la misión con contexto');
+    if (task.kind === 'review') {
+      const target = this.store.task(task.targetId!);
+      if (!target || target.reviewId !== task.id) throw new Error('La revisión ya fue sustituida');
+      if (target.status === 'blocked')
+        this.store.updateTask(target.id, { status: 'review', reason: undefined });
+    } else if (task.reviewId) {
+      if (this.active.has(task.reviewId))
+        throw new Error('Espera a que termine la revisión en vuelo');
+      this.store.updateTask(task.reviewId, {
+        status: 'cancelled',
+        reason: 'Nueva implementación requiere nueva revisión',
+      });
+      this.store.updateTask(task.id, { reviewId: undefined });
+    }
+    this.store.event('task.revised', task.runId, id, { context });
+    return this.store.updateTask(id, {
+      status: 'ready',
+      brief: task.brief + '\nContexto del propietario: ' + context,
+      reason: undefined,
+      report: undefined,
+    });
+  }
+  async tick() {
+    if (this.ticking || !this.enabled) return;
+    this.ticking = true;
+    try {
+      for (const run of this.store
+        .runs()
+        .filter((r) => ['queued', 'running'].includes(r.status))
+        .reverse()) {
+        if (this.directors.has(run.id)) continue;
+        if (run.status === 'queued') {
+          void this.direct(run);
+          continue;
+        }
+        let task: Task | undefined;
+        while ((task = this.store.claim(run.id, this.maxWorkers()))) void this.work(task);
+        const tasks = this.store.tasks(run.id).filter((t) => t.status !== 'cancelled');
+        if (
+          tasks.some((t) => t.status === 'running') ||
+          [...this.active.values()].some((a) => a.runId === run.id)
+        )
+          continue;
+        if (tasks.some((t) => ['blocked', 'failed'].includes(t.status))) {
+          if (tasks.some((t) => t.attempts >= 2) && run.directorPasses < 6) void this.direct(run);
+          else
+            this.store.updateRun(run.id, {
+              status: 'blocked',
+              reason: 'Una tarea requiere contexto o revisión. Consulta el inspector.',
+            });
+        } else if (
+          tasks.some((t) => t.status === 'review') ||
+          !tasks.some((t) => t.status === 'ready')
+        )
+          void this.direct(run);
+      }
+    } catch (error) {
+      this.store.event('scheduler.error', undefined, undefined, {
+        error: redact(String(error), this.cfg.apiKey),
+      });
+    } finally {
+      this.ticking = false;
+    }
+  }
+  guard(runId: string) {
+    const run = this.store.run(runId);
+    if (!run || run.status === 'cancelled') throw new Error('Misión cancelada');
+    return run;
+  }
+  async direct(run: Run) {
+    if (this.directors.has(run.id)) return;
+    if (run.directorPasses >= 6) {
+      this.store.updateRun(run.id, {
+        status: 'blocked',
+        reason: 'Límite de seis intervenciones del director; requiere contexto del propietario.',
+      });
+      return;
+    }
+    const controller = new AbortController(),
+      key = 'director-' + run.id;
+    this.directors.add(run.id);
+    this.active.set(key, { runId: run.id, controller });
+    this.store.updateRun(run.id, { status: 'planning', directorPasses: run.directorPasses + 1 });
+    const before = JSON.stringify(this.store.tasks(run.id).map((t) => [t.id, t.status, t.brief]));
+    try {
+      if (!run.base) this.store.updateRun(run.id, { base: git(run.repo, 'rev-parse', 'HEAD') });
+      const tasks = this.store.tasks(run.id);
+      const mapFile = path.join(officeRoot, 'config/project-map.json');
+      const projectMap =
+        run.kind !== 'fixture' && existsSync(mapFile)
+          ? readFileSync(mapFile, 'utf8').slice(0, 7000)
+          : '';
+      const prompt = `Misión autorizada: ${run.objective}\nMapa QR: ${projectMap}\nTipo: ${run.kind}. Presupuesto: $${run.budget}; disponible: ${Math.max(0, run.budget - this.store.cost(run.id).spent - this.store.cost(run.id).reserved)}.\nEstado de tareas: ${JSON.stringify(tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, role: t.role, files: t.files, commit: t.commit, report: t.report, checks: t.checks.map((c) => ({ command: c.command, exitCode: c.exitCode })), reviewId: t.reviewId, reason: t.reason }))).slice(0, 16000)}\nCrea tareas pequeñas con create_task y assign_task. IDs deben empezar por ${run.id}-. El runner crea commits locales después del informe del worker; los campos commit y la herramienta inspect_git son la evidencia vigente. Al recibir DONE pide request_review para cada tarea de implementación. Cuando revisores pasan, usa record_decision y request_integration una sola vez. No hagas polling: termina el turno después de coordinar. Para análisis sin cambios puedes cerrar la misión con record_decision(final=true) tras informes revisados. Si no hay progreso, registra el motivo. No crees nuevas funciones del QR. No edites archivos.`;
+      const result = await runQuery({
+        cfg: this.cfg,
+        store: this.store,
+        runId: run.id,
+        model: this.cfg.director,
+        cwd: run.repo,
+        prompt,
+        system: loadSkills(['morphiq-director', 'morphiq-budget']),
+        budget: Math.min(0.4, run.budget / 3),
+        signal: controller.signal,
+        mcp: { office: this.tools(run) },
+        resume: run.directorSession,
+        onSession: (session) => {
+          if (this.store.run(run.id)?.directorSession !== session)
+            this.store.updateRun(run.id, { directorSession: session });
+        },
+      });
+      const current = this.store.run(run.id)!;
+      if (!['cancelled', 'paused', 'done', 'blocked'].includes(current.status)) {
+        const after = JSON.stringify(
+          this.store.tasks(run.id).map((t) => [t.id, t.status, t.brief]),
+        );
+        this.store.updateRun(run.id, {
+          status: before === after ? 'blocked' : 'running',
+          reason:
+            before === after
+              ? 'El director no dejó una transición ejecutable. Revisa su mensaje.'
+              : undefined,
+          directorSession: result.session,
+        });
+      }
+    } catch (error) {
+      if (this.store.run(run.id)?.status !== 'cancelled')
+        this.store.updateRun(run.id, {
+          status: 'blocked',
+          reason: redact(String(error), this.cfg.apiKey),
+        });
+    } finally {
+      this.active.delete(key);
+      this.directors.delete(run.id);
+    }
+  }
+  async check(
+    task: Task,
+    kind: 'test' | 'build' | 'lint' | 'typecheck' | 'install',
+    script?: string,
+    signal?: AbortSignal,
+    testFile?: string,
+  ) {
+    this.guard(task.runId);
+    const cwd = task.worktree;
+    if (!cwd) throw new Error('No hay worktree');
+    const command = process.execPath;
+    let args: string[];
+    if (this.store.run(task.runId)!.kind === 'fixture') {
+      if (kind !== 'test') throw new Error('El fixture solo permite test');
+      const files = readdirSync(cwd).filter(
+        (f) => /^.+\.test\.(m?js|cjs)$/.test(f) && (!testFile || f === testFile),
+      );
+      if (!files.length) throw new Error('No hay tests en el fixture');
+      args = ['--test', ...files];
+    } else {
+      const pkg = JSON.parse(readFileSync(path.join(cwd, 'package.json'), 'utf8'));
+      const name = script ?? kind;
+      if (
+        kind !== 'install' &&
+        ![
+          'test',
+          'test:integration',
+          'build',
+          'lint',
+          'typecheck',
+          'check',
+          'format:check',
+        ].includes(name)
+      )
+        throw new Error('Script fuera del catálogo de comprobaciones');
+      const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
+      if (!existsSync(npmCli)) throw new Error('npm CLI no encontrado junto a Node');
+      if (kind === 'install') args = [npmCli, 'ci', '--no-audit'];
+      else {
+        if (!pkg.scripts?.[name]) throw new Error(`Script inexistente: ${name}`);
+        args = [npmCli, 'run', name];
+      }
+    }
+    this.store.updateTask(task.id, { tool: 'run_check' });
+    const startedAt = new Date().toISOString();
+    const result = await execute(command, args, cwd, this.cfg, signal);
+    const evidence = {
+      id: randomUUID(),
+      command: kind === 'install' ? 'npm ci' : (testFile ?? script ?? kind),
+      startedAt,
+      ...result,
+    };
+    const current = this.store.task(task.id)!;
+    this.store.updateTask(task.id, {
+      checks: [...current.checks, evidence].slice(-30),
+      tool: undefined,
+    });
+    this.store.event('process.completed', task.runId, task.id, {
+      ...evidence,
+      output: evidence.output.slice(-4000),
+    });
+    mkdirSync(path.join(this.cfg.paths.reports, task.runId), { recursive: true });
+    writeFileSync(
+      path.join(this.cfg.paths.reports, task.runId, evidence.id + '.txt'),
+      evidence.output,
+    );
+    return evidence;
+  }
+  async work(task: Task) {
+    const run = this.store.run(task.runId)!,
+      controller = new AbortController();
+    this.active.set(task.id, { runId: run.id, controller });
+    const heartbeat = setInterval(() => {
+      if (this.store.task(task.id)?.status === 'running')
+        this.store.updateTask(task.id, { leaseUntil: Date.now() + 30_000 });
+    }, 10_000);
+    try {
+      const target = task.kind === 'review' ? this.store.task(task.targetId!)! : undefined;
+      const cwd = target?.worktree ?? task.worktree ?? path.join(this.cfg.paths.worktrees, task.id);
+      if (!target && !task.worktree)
+        worktree(run.repo, run.base ?? git(run.repo, 'rev-parse', 'HEAD'), cwd);
+      this.store.updateTask(task.id, {
+        worktree: cwd,
+        base: target?.base ?? run.base,
+        skill: task.kind === 'review' ? 'morphiq-review' : 'morphiq-worker',
+      });
+      const skills =
+        task.kind === 'review'
+          ? ['morphiq-review']
+          : [
+              'morphiq-worker',
+              ...(task.role === 'qr'
+                ? ['morphiq-qr-quality']
+                : task.role === 'mobile'
+                  ? ['morphiq-mobile-readiness']
+                  : []),
+            ];
+      await runQuery({
+        cfg: this.cfg,
+        store: this.store,
+        runId: run.id,
+        taskId: task.id,
+        model: this.cfg.worker,
+        cwd,
+        prompt: `Tarea ${task.id}: ${task.brief}\nAceptación: ${JSON.stringify(task.acceptance)}\nArchivos permitidos: ${JSON.stringify(task.files)}. Tipo misión: ${run.kind}. ${target ? `Revisa este resultado de forma independiente: ${JSON.stringify(target.report)}\nEvidencia posterior del runner: ${JSON.stringify({ commit: target.commit, base: target.base, checks: target.checks.map((c) => ({ command: c.command, exitCode: c.exitCode })) })}. Verifica el commit real con inspect_git; el informe del worker fue escrito ANTES de que el runner hiciera el commit.\nDiff: ${(target.diff ?? '').slice(0, 12000)}` : 'El runner valida el alcance y crea el commit local automáticamente DESPUÉS de tu informe; no tienes que ejecutar Git.'}\nInvoca primero Skill con morphiq-office:${skills[0]}. Lee archivos con read_file, implementa con write_file cuando tengas permiso, ejecuta run_check y envía submit_result. En fixture puedes ejecutar testFile='math.test.js' o 'text.test.js' para comprobar tu alcance; el integrador ejecuta ambas pruebas. El informe debe listar evidencias reales y no solo declarar éxito.`,
+        system: loadSkills(skills),
+        budget: Math.min(0.12, run.budget / 8),
+        signal: controller.signal,
+        mcp: { office: this.tools(run, this.store.task(task.id)!, controller.signal) },
+      });
+      const current = this.store.task(task.id)!;
+      if (current.status === 'cancelled') return;
+      if (!current.report) throw new Error('El trabajador no envió un informe estructurado');
+      if (!['DONE', 'DONE_WITH_CONCERNS'].includes(current.report.status))
+        throw new Error(current.report.summary);
+      if (!current.checks.some((c) => c.exitCode === 0) && run.kind !== 'analysis')
+        throw new Error('Faltan comprobaciones ejecutadas con éxito');
+      if (task.kind === 'review') {
+        if (current.report.verdict !== 'pass') {
+          this.store.updateTask(task.targetId!, {
+            status: 'blocked',
+            reason: 'Revisión rechazada: ' + current.report.summary,
+          });
+          throw new Error('Revisión rechazada');
+        }
+        this.store.updateTask(task.id, { status: 'verified', leaseUntil: undefined });
+        this.store.updateTask(task.targetId!, { status: 'verified', reason: undefined });
+      } else {
+        let diff = git(cwd, 'diff', current.base!, '--');
+        const changed = [
+          ...git(cwd, 'diff', current.base!, '--name-only').split('\n'),
+          ...git(cwd, 'ls-files', '--others', '--exclude-standard').split('\n'),
+        ].filter(Boolean);
+        for (const file of changed) scopedPath(cwd, file, current.files, true);
+        if (run.kind === 'analysis' && changed.length)
+          throw new Error('Una misión de análisis no permite escrituras');
+        let commit = current.commit;
+        if (changed.length) {
+          git(cwd, 'add', '--', ...changed);
+          diff = git(cwd, 'diff', '--cached', '--');
+          if (/sk-ant-[A-Za-z0-9_-]+/.test(diff))
+            throw new Error('Secreto detectado en diff; no se hará commit');
+          git(cwd, 'commit', '-m', `office task ${task.id}: ${task.title}`);
+          commit = git(cwd, 'rev-parse', 'HEAD');
+        }
+        diff = git(cwd, 'diff', current.base!, 'HEAD', '--');
+        if (commit && git(cwd, 'rev-parse', commit + '^') !== current.base)
+          commit = git(
+            cwd,
+            'commit-tree',
+            git(cwd, 'rev-parse', 'HEAD^{tree}'),
+            '-p',
+            current.base!,
+            '-m',
+            `office task ${task.id}: resultado completo revisado`,
+          );
+        this.store.updateTask(task.id, {
+          status: 'review',
+          diff: diff.slice(0, 100000),
+          commit,
+          leaseUntil: undefined,
+        });
+      }
+    } catch (error) {
+      if (this.store.task(task.id)?.status !== 'cancelled')
+        this.store.updateTask(task.id, {
+          status: 'blocked',
+          reason: redact(String(error), this.cfg.apiKey),
+          leaseUntil: undefined,
+        });
+    } finally {
+      clearInterval(heartbeat);
+      this.active.delete(task.id);
+    }
+  }
+  tools(run: Run, task?: Task, signal?: AbortSignal) {
+    const tools: SdkMcpToolDefinition<any>[] = [];
+    const add = (
+      name: string,
+      description: string,
+      schema: z.ZodRawShape,
+      handler: (args: any) => unknown,
+    ) =>
+      tools.push(
+        tool(name, description, schema, async (args) => {
+          try {
+            this.guard(run.id);
+            if (task) this.store.updateTask(task.id, { tool: name });
+            this.store.event('tool.started', run.id, task?.id, { name });
+            const value = await handler(args);
+            this.store.event('tool.completed', run.id, task?.id, { name });
+            if (task) this.store.updateTask(task.id, { tool: undefined });
+            return {
+              content: [{ type: 'text', text: redact(JSON.stringify(value), this.cfg.apiKey) }],
+            };
+          } catch (error) {
+            const message = redact(String(error), this.cfg.apiKey);
+            this.store.event('tool.failed', run.id, task?.id, { name, error: message });
+            return { isError: true, content: [{ type: 'text', text: message }] };
+          }
+        }),
+      );
+    const cwd = task?.worktree ?? run.repo;
+    add(
+      'inspect_git',
+      'Comprueba HEAD, autor, estado y diff real de este checkout, sin escribir ni ejecutar una shell.',
+      {},
+      () => {
+        const base = task?.base ?? run.base;
+        return {
+          head: git(cwd, 'rev-parse', 'HEAD'),
+          author: git(cwd, 'log', '-1', '--format=%an <%ae>'),
+          status: git(cwd, 'status', '--short'),
+          changedFiles: base ? git(cwd, 'diff', base, 'HEAD', '--name-only') : '',
+          diff: base ? git(cwd, 'diff', base, 'HEAD', '--').slice(0, 12000) : '',
+        };
+      },
+    );
+    add(
+      'read_file',
+      'Lee un archivo relativo del repositorio; no permite secretos ni enlaces fuera del alcance.',
+      {
+        path: z.string(),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(16000).default(8000),
+      },
+      (args) =>
+        readFileSync(scopedPath(cwd, args.path), 'utf8').slice(
+          args.offset,
+          args.offset + args.limit,
+        ),
+    );
+    add(
+      'list_files',
+      'Lista archivos Git del proyecto (sin secretos ni dependencias).',
+      { prefix: z.string().default('') },
+      (args) =>
+        git(cwd, 'ls-files')
+          .split('\n')
+          .filter((f) => f.startsWith(args.prefix) && !/(^|\/)\.env/.test(f))
+          .slice(0, 350),
+    );
+    if (task) {
+      if (
+        task.kind === 'work' &&
+        run.kind !== 'analysis' &&
+        ['web', 'design', 'qr', 'mobile'].includes(task.role)
+      )
+        add(
+          'write_file',
+          'Escribe solo archivos con propiedad asignada en este worktree.',
+          { path: z.string(), content: z.string().max(150000) },
+          (args) => {
+            const file = scopedPath(cwd, args.path, task.files, true);
+            if (/sk-ant-[A-Za-z0-9_-]+/.test(args.content))
+              throw new Error('Contenido contiene secreto');
+            mkdirSync(path.dirname(file), { recursive: true });
+            writeFileSync(file, args.content);
+            return { path: args.path, bytes: Buffer.byteLength(args.content) };
+          },
+        );
+      add(
+        'run_check',
+        'Ejecuta un script de comprobación del catálogo; devuelve exit code y salida real. En fixtures testFile selecciona una prueba existente.',
+        {
+          kind: z.enum(['test', 'build', 'lint', 'typecheck', 'install']),
+          script: z.string().optional(),
+          testFile: z.string().optional(),
+        },
+        (args) =>
+          this.check(this.store.task(task.id)!, args.kind, args.script, signal, args.testFile),
+      );
+      add(
+        'submit_result',
+        'Entrega informe estructurado. DONE no implica revisión ni integración.',
+        ReportSchema.shape,
+        (args) => {
+          const report = ReportSchema.parse(args);
+          for (const file of report.files)
+            scopedPath(cwd, file, task.files, task.kind === 'work' && run.kind !== 'analysis');
+          this.store.updateTask(task.id, { report });
+          return { received: true };
+        },
+      );
+    } else {
+      const own = (id: string) => {
+        const item = this.store.task(id);
+        if (!item || item.runId !== run.id) throw new Error('Tarea ajena a esta misión');
+        return item;
+      };
+      add(
+        'create_task',
+        'Crea tarea idempotente con objetivo, aceptación y propiedad; crea dependencias primero.',
+        { ...TaskInput.omit({ runId: true, kind: true, targetId: true }).shape },
+        (args) => {
+          if (!args.id.startsWith(run.id + '-'))
+            throw new Error('El ID debe comenzar por run ID y guion');
+          return this.store.createTask({ ...args, runId: run.id, kind: 'work' });
+        },
+      );
+      add(
+        'assign_task',
+        'Encola una tarea Haiku; scheduler aplica plazas, permisos y presupuesto.',
+        { id: z.string() },
+        (args) => {
+          own(args.id);
+          return this.store.assign(args.id);
+        },
+      );
+      add(
+        'inspect_task',
+        'Devuelve estado, informe y evidencia real.',
+        { id: z.string() },
+        (args) => own(args.id),
+      );
+      add(
+        'request_review',
+        'Crea revisión independiente Haiku que ocupa una plaza.',
+        { id: z.string() },
+        (args) => {
+          const target = own(args.id);
+          if (!['review', 'verified'].includes(target.status))
+            throw new Error('La tarea no está lista para revisar');
+          if (target.reviewId) return own(target.reviewId);
+          const id = target.id + '-review-' + target.attempts;
+          const review = this.store.createTask({
+            id,
+            runId: run.id,
+            title: 'Revisar ' + target.title,
+            brief:
+              'Comprueba aceptación y diff de ' +
+              target.id +
+              '. Ejecuta pruebas. Reporta verdict pass o fail con evidencia.',
+            acceptance: target.acceptance,
+            files: target.files,
+            dependencies: [],
+            role: 'review',
+            kind: 'review',
+            targetId: target.id,
+          });
+          this.store.updateTask(target.id, { reviewId: id });
+          return this.store.assign(review.id);
+        },
+      );
+      add(
+        'revise_task',
+        'Añade contexto; tras dos fallos crea un objetivo reducido con aceptación nueva conservando la tarea anterior.',
+        {
+          id: z.string(),
+          context: z.string().min(5).max(6000),
+          acceptance: z.array(z.string()).min(1).optional(),
+        },
+        (args) => {
+          const old = own(args.id);
+          if (old.status === 'running') throw new Error('No revisar una tarea en vuelo');
+          this.store.event('task.revised', run.id, old.id, { context: args.context });
+          if (old.attempts >= 2) {
+            if (!args.acceptance)
+              throw new Error('Dos fallos requieren objetivo reducido y aceptación nueva');
+            const id = old.id + '-v' + this.store.run(run.id)!.directorPasses;
+            const next = this.store.createTask({
+              id,
+              runId: run.id,
+              title: old.title + ' (alcance reducido)',
+              brief: args.context,
+              acceptance: args.acceptance,
+              files: old.files,
+              dependencies: old.dependencies,
+              role: old.role,
+              kind: old.kind,
+            });
+            this.store.updateTask(old.id, {
+              status: 'cancelled',
+              reason: 'Sustituida por objetivo reducido ' + id,
+            });
+            if (old.reviewId)
+              this.store.updateTask(old.reviewId, {
+                status: 'cancelled',
+                reason: 'Objetivo sustituido',
+              });
+            for (const dependent of this.store
+              .tasks(run.id)
+              .filter((t) => t.dependencies.includes(old.id) && t.status === 'ready'))
+              this.store.updateTask(dependent.id, {
+                dependencies: dependent.dependencies.map((d) => (d === old.id ? id : d)),
+              });
+            return this.store.assign(next.id);
+          }
+          if (old.reviewId)
+            this.store.updateTask(old.reviewId, {
+              status: 'cancelled',
+              reason: 'Nueva revisión requerida tras corrección',
+            });
+          return this.store.updateTask(old.id, {
+            brief: old.brief + '\nCorrección del director: ' + args.context,
+            status: 'ready',
+            report: undefined,
+            reviewId: undefined,
+            reason: undefined,
+          });
+        },
+      );
+      add(
+        'record_decision',
+        'Registra decisión visible sustentada. final=true cierra solo análisis con tareas verificadas.',
+        { decision: z.string().min(5).max(6000), final: z.boolean().default(false) },
+        (args) => {
+          this.store.event('director.decision', run.id, undefined, { decision: args.decision });
+          if (args.final) {
+            const tasks = this.store.tasks(run.id);
+            if (
+              run.kind !== 'analysis' ||
+              !tasks.length ||
+              tasks.some((t) => t.status !== 'verified')
+            )
+              throw new Error('Cierre requiere análisis con resultados revisados');
+            this.store.updateRun(run.id, { status: 'done' });
+          }
+          return { recorded: true };
+        },
+      );
+      add(
+        'request_integration',
+        'Integra una sola vez resultados verificados bajo lock y pruebas reales.',
+        { decision: z.string().min(5) },
+        async (args) => {
+          const current = this.store.run(run.id)!;
+          if (current.status === 'done') return { commit: current.commit, idempotent: true };
+          const tasks = this.store.tasks(run.id).filter((t) => t.status !== 'cancelled'),
+            work = tasks.filter((t) => t.kind === 'work');
+          if (!work.length || tasks.some((t) => t.status !== 'verified'))
+            throw new Error('Todos los resultados necesitan revisión aprobada');
+          if (run.kind === 'analysis') {
+            this.store.event('director.decision', run.id, undefined, { decision: args.decision });
+            this.store.updateRun(run.id, { status: 'done' });
+            return { done: true };
+          }
+          if (run.kind === 'product' && (!this.cfg.productWrite || !run.authorizeProductWrite))
+            throw new Error(
+              'Escritura de producto requiere misión autorizada y configuración habilitada',
+            );
+          this.store.event('integration.started', run.id, undefined, { decision: args.decision });
+          const commit = await integrate({
+            repo: run.repo,
+            base: current.base!,
+            commits: work.map((t) => t.commit).filter((c): c is string => !!c),
+            lock: path.join(this.cfg.paths.state, 'integrator.lock'),
+            message: 'Morphiq: ' + run.objective.slice(0, 120),
+            verify: async () => {
+              const synthetic = work[0];
+              const result = await this.check(
+                { ...synthetic, worktree: run.repo },
+                'test',
+                undefined,
+                signal,
+              );
+              if (result.exitCode !== 0) return false;
+              if (run.kind === 'product')
+                for (const name of ['test:integration', 'build'])
+                  if (
+                    (
+                      await this.check(
+                        { ...synthetic, worktree: run.repo },
+                        name === 'build' ? 'build' : 'test',
+                        name,
+                        signal,
+                      )
+                    ).exitCode !== 0
+                  )
+                    return false;
+              return true;
+            },
+          });
+          if (run.kind === 'product') {
+            if (git(run.repo, 'branch', '--show-current') !== 'main')
+              throw new Error('Integración de producto requiere checkout main');
+            git(run.repo, 'push', 'origin', 'HEAD:main');
+          }
+          for (const item of tasks) this.store.updateTask(item.id, { status: 'done' });
+          this.store.updateRun(run.id, { status: 'done', commit });
+          this.store.event('integration.completed', run.id, undefined, { commit });
+          return {
+            commit,
+            tests: this.store
+              .task(work[0].id)!
+              .checks.slice(-1)
+              .map((c) => ({ command: c.command, exitCode: c.exitCode, durationMs: c.durationMs })),
+            pushed: run.kind === 'product',
+          };
+        },
+      );
+      for (const [name, action] of [
+        ['pause_run', 'pause'],
+        ['resume_run', 'resume'],
+        ['cancel_run', 'cancel'],
+      ] as const)
+        add(name, 'Control de esta misión.', {}, () => this.control(run.id, action));
+    }
+    return createSdkMcpServer({ name: 'office', version: '1.0.0', tools });
+  }
+}

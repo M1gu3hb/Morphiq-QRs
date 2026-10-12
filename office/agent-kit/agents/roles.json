@@ -1,0 +1,13 @@
+{
+  "director": ["morphiq-director", "morphiq-budget", "dispatching-parallel-agents", "writing-plans", "subagent-driven-development", "requesting-code-review", "using-git-worktrees"],
+  "research": ["morphiq-worker", "verification-before-completion", "claude-api"],
+  "web": ["morphiq-worker", "systematic-debugging", "verification-before-completion", "receiving-code-review", "test-driven-development"],
+  "design": ["morphiq-worker", "frontend-design", "webapp-testing", "verification-before-completion"],
+  "qr": ["morphiq-worker", "morphiq-qr-quality", "systematic-debugging", "verification-before-completion"],
+  "mobile": ["morphiq-worker", "morphiq-mobile-readiness", "systematic-debugging", "verification-before-completion"],
+  "qa": ["morphiq-worker", "webapp-testing", "verification-before-completion"],
+  "review": ["morphiq-review", "verification-before-completion"],
+  "integration": ["morphiq-git-integration", "using-git-worktrees", "verification-before-completion"],
+  "skill-author": ["skill-creator"],
+  "tool-author": ["mcp-builder", "claude-api"]
+}

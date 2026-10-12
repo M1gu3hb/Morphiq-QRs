@@ -1,0 +1,11 @@
+PRAGMA journal_mode=WAL;
+PRAGMA busy_timeout=5000;
+CREATE TABLE IF NOT EXISTS migrations(version INTEGER PRIMARY KEY, applied_at TEXT);
+CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY, run_id TEXT NOT NULL, body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, type TEXT, run_id TEXT, task_id TEXT, body TEXT);
+CREATE TABLE IF NOT EXISTS queries(id TEXT PRIMARY KEY,run_id TEXT,task_id TEXT,model TEXT,status TEXT,reserved REAL,cost REAL DEFAULT 0,session_id TEXT,body TEXT);
+CREATE TABLE IF NOT EXISTS messages(query_id TEXT,session_id TEXT,message_id TEXT,body TEXT,PRIMARY KEY(session_id,message_id));
+CREATE TABLE IF NOT EXISTS totals(session_id TEXT,epoch INTEGER,cost REAL,body TEXT,PRIMARY KEY(session_id,epoch));
+CREATE TABLE IF NOT EXISTS settings(id TEXT PRIMARY KEY,body TEXT);
+INSERT OR IGNORE INTO migrations VALUES(1,datetime('now'));
