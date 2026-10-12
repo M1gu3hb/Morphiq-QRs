@@ -56,7 +56,12 @@ const labels: Record<string, string> = {
 function App() {
   const [state, setState] = useState<Snapshot>(),
     [connected, setConnected] = useState(false),
-    [tab, setTab] = useState('Oficina'),
+    [tab, setTab] = useState(() => {
+      const view = new URLSearchParams(location.search).get('view');
+      return ['Oficina', 'Tareas', 'Costes', 'Configuración'].includes(view ?? '')
+        ? view!
+        : 'Oficina';
+    }),
     [list, setList] = useState(false),
     [runId, setRunId] = useState(''),
     [selected, setSelected] = useState(''),
@@ -305,7 +310,7 @@ function App() {
         <div className="sidebar-project">
           <small>Proyecto conectado</small>
           <strong>Morphiq QRs</strong>
-          <span>main / solo lectura</span>
+          <span>{state?.settings.authorizedProductRunId ? 'main / misión autorizada' : 'main / solo lectura'}</span>
           <a href="https://morphiqqr.vercel.app/" target="_blank" rel="noreferrer">
             Abrir estudio ↗
           </a>

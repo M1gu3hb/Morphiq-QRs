@@ -13,6 +13,7 @@
     "stop": "node --import tsx scripts/cli.ts stop",
     "export-run": "node --import tsx scripts/cli.ts export-run",
     "smoke": "node --import tsx scripts/smoke.ts",
+    "import-mission": "node --import tsx scripts/import-mission.ts",
     "build": "vite build --config apps/web/vite.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint apps packages scripts tests",

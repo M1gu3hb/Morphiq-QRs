@@ -21,6 +21,18 @@ export function worktree(repo: string, base: string, target: string) {
   identity(target);
   return target;
 }
+export function dependencyWorktree(repo: string, base: string, target: string, commits: string[]) {
+  worktree(repo, base, target);
+  if (commits.length) {
+    for (const commit of [...new Set(commits)]) {
+      if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Commit de dependencia inválido');
+      git(target, 'cherry-pick', '--no-commit', commit);
+    }
+    if (git(target, 'diff', '--cached', '--name-only'))
+      git(target, 'commit', '-m', 'office: verified dependency snapshot');
+  }
+  return git(target, 'rev-parse', 'HEAD');
+}
 export async function integrate(options: {
   repo: string;
   base: string;

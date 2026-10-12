@@ -91,10 +91,11 @@ export async function runQuery(input: {
   ) as Record<string, string[]>;
   const skills = roles[role].map((name) => 'morphiq-office:' + name);
   const abortController = new AbortController();
+  const product = store.run(input.runId)?.kind === 'product';
   const abort = () => abortController.abort();
   input.signal.addEventListener('abort', abort, { once: true });
   if (input.signal.aborted) abort();
-  const timer = setTimeout(abort, 5 * 60_000);
+  const timer = setTimeout(abort, (product ? 30 : 5) * 60_000);
   try {
     const stream = query({
       prompt: input.prompt,
@@ -122,10 +123,19 @@ export async function runQuery(input: {
           ...processEnv(cfg, true),
           CLAUDE_CODE_MAX_RETRIES: '2',
           CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: '0',
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096',
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS: product ? '8192' : '4096',
         },
-        maxBudgetUsd: input.budget,
-        maxTurns: 18,
+        maxBudgetUsd:
+          input.budget +
+          (input.resume
+            ? Number(
+                store
+                  .totals()
+                  .find((total) => total.session_id === input.resume && total.epoch === epoch)
+                  ?.cost ?? 0,
+              )
+            : 0),
+        maxTurns: product ? 40 : 18,
         effort: 'low',
         thinking: { type: 'adaptive' },
         abortController,

@@ -82,6 +82,12 @@ export interface Run {
   updatedAt: string;
   reason?: string;
   directorSession?: string;
+  specPath?: string;
+  specSha?: string;
+  requirements?: Record<
+    string,
+    { status: 'pending' | 'blocked' | 'verified' | 'excluded' | 'candidate'; evidence: string }
+  >;
   directorPasses: number;
   base?: string;
   commit?: string;

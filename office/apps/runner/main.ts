@@ -15,6 +15,7 @@ import { config, officeRoot, processEnv } from '../../packages/orchestration/con
 import { execFileSync } from 'node:child_process';
 import { Store } from '../../packages/orchestration/store.ts';
 import { Scheduler } from '../../packages/orchestration/scheduler.ts';
+import { importMission, productAuthorized } from '../../packages/orchestration/missions.ts';
 import { verifyModels } from '../../packages/anthropic-adapter/index.ts';
 import { RunInput, type Event } from '../../packages/contracts/index.ts';
 import { git, identity } from '../../packages/git-integration/index.ts';
@@ -147,7 +148,7 @@ async function body(req: IncomingMessage) {
   let data = '';
   for await (const chunk of req) {
     data += chunk;
-    if (data.length > 100_000) throw new Error('Petición demasiado grande');
+    if (data.length > 200_000) throw new Error('Petición demasiado grande');
   }
   return data ? JSON.parse(data) : {};
 }
@@ -312,6 +313,11 @@ const server = createServer(async (req, res) => {
         return;
       }
       const input = await body(req);
+      if (pathname === '/api/import-mission') {
+        if (!api.ok) throw new Error(api.error ?? 'API no disponible');
+        json(res, importMission(store, cfg, input), 201);
+        return;
+      }
       if (pathname === '/api/cancel-all') {
         const runs = store.runs().filter((run) => !['done', 'cancelled'].includes(run.status));
         for (const run of runs) {
@@ -333,7 +339,10 @@ const server = createServer(async (req, res) => {
           return;
         }
         if (!api.ok) throw new Error(api.error ?? 'API no disponible');
-        if (spec.kind === 'product' && (!cfg.productWrite || !spec.authorizeProductWrite))
+        if (
+          spec.kind === 'product' &&
+          !productAuthorized(store, { id, authorizeProductWrite: spec.authorizeProductWrite })
+        )
           throw new Error(
             'Producto en modo lectura; habilita una misión autorizada posteriormente',
           );

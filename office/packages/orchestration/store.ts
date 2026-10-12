@@ -65,8 +65,9 @@ export class Store {
       return existing;
     }
     if (!this.run(spec.runId)) throw new Error('Misión no encontrada');
-    if (this.tasks(spec.runId).length >= 40)
-      throw new Error('Límite de 40 tareas por misión; agrupa o reduce el alcance');
+    const taskLimit = this.run(spec.runId)?.kind === 'product' ? 200 : 40;
+    if (this.tasks(spec.runId).length >= taskLimit)
+      throw new Error(`Límite de ${taskLimit} tareas por misión; agrupa o reduce el alcance`);
     for (const dep of spec.dependencies)
       if (dep === spec.id || this.task(dep)?.runId !== spec.runId)
         throw new Error('Dependencia inválida o no creada');

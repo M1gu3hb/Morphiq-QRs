@@ -68,6 +68,11 @@ export function processEnv(cfg: Config, withKey = false): NodeJS.ProcessEnv {
     npm_config_prefix: path.join(cfg.paths.root, 'tools/npm'),
     PLAYWRIGHT_BROWSERS_PATH: path.join(cfg.paths.cache, 'playwright'),
     CLAUDE_CONFIG_DIR: cfg.paths.sessions,
+    ANDROID_HOME: path.join(cfg.paths.root, 'tools/android-sdk'),
+    ANDROID_SDK_ROOT: path.join(cfg.paths.root, 'tools/android-sdk'),
+    GRADLE_USER_HOME: path.join(cfg.paths.cache, 'gradle'),
+    ANDROID_USER_HOME: path.join(cfg.paths.state, 'android'),
+    ANDROID_AVD_HOME: path.join(cfg.paths.root, 'tools/android-avd'),
   };
   for (const name of Object.keys(env))
     if (
